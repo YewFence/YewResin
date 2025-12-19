@@ -106,7 +106,7 @@ check_dependencies() {
 }
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
 }
 
 # 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
