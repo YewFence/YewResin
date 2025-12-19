@@ -8,6 +8,11 @@ on:
   # 支持手动触发
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: '模拟运行（不实际执行）'
+        required: false
+        default: false
+        type: boolean
       ignore_backup_error:
         description: '即使备份失败也继续执行'
         required: false
@@ -43,8 +48,14 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           IGNORE_BACKUP_ERROR: ${{ github.event.inputs.ignore_backup_error || 'true' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
-          ssh -p ${SSH_PORT:-22} ${SSH_USER}@${SSH_HOST} "IGNORE_BACKUP_ERROR=${IGNORE_BACKUP_ERROR} bash -s" < YewResin/backup.sh
+          if [ "$DRY_RUN" = "true" ]; then
+            BACKUP_ARGS="--dry-run"
+          else
+            BACKUP_ARGS="-y"
+          fi
+          ssh -p ${SSH_PORT:-22} ${SSH_USER}@${SSH_HOST} "IGNORE_BACKUP_ERROR=${IGNORE_BACKUP_ERROR} bash -s -- ${BACKUP_ARGS}" < YewResin/backup.sh
 
       - name: 清理 SSH 密钥
         if: always()
