@@ -2,20 +2,6 @@
 
 set -eo pipefail
 
-# ================= 配置区 =================
-# 你的 Docker Compose 项目总目录
-BASE_DIR="/opt/docker_file"
-# 即使 Kopia 命令失败也继续执行后续启动步骤吗？(true/false)
-IGNORE_BACKUP_ERROR=true
-# 定义你的网关服务文件夹名称 (最后关，最先开)
-# 请确保这里填的是文件夹的名字
-PRIORITY_SERVICES=("caddy" "nginx" "gateway")
-# 锁文件路径
-LOCK_FILE="/tmp/backup_maintenance.lock"
-# Kopia 远程路径预期值
-EXPECTED_REMOTE="gdrive:PacificYew"
-# ==========================================
-
 # 加载环境变量配置文件（可选）
 # 支持通过 CONFIG_FILE 环境变量指定配置文件路径
 CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/.env}"
@@ -23,6 +9,26 @@ if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     source "$CONFIG_FILE"
 fi
+
+# ================= 配置区 =================
+# 所有配置均可通过环境变量或 .env 文件覆盖
+
+# 你的 Docker Compose 项目总目录
+BASE_DIR="${BASE_DIR:-/opt/docker_file}"
+# 即使 Kopia 命令失败也继续执行后续启动步骤吗？(true/false)
+IGNORE_BACKUP_ERROR="${IGNORE_BACKUP_ERROR:-true}"
+# 定义你的网关服务文件夹名称 (最后关，最先开)
+# 通过 PRIORITY_SERVICES_LIST 环境变量设置，用空格分隔
+if [ -n "$PRIORITY_SERVICES_LIST" ]; then
+    IFS=' ' read -r -a PRIORITY_SERVICES <<< "$PRIORITY_SERVICES_LIST"
+else
+    PRIORITY_SERVICES=("caddy" "nginx" "gateway")
+fi
+# 锁文件路径
+LOCK_FILE="${LOCK_FILE:-/tmp/backup_maintenance.lock}"
+# Kopia 远程路径预期值
+EXPECTED_REMOTE="${EXPECTED_REMOTE:-gdrive:backup}"
+# ==========================================
 
 # ================= 依赖检查 =================
 # 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
