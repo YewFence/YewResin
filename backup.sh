@@ -2,6 +2,10 @@
 
 set -eo pipefail
 
+# ================= 记录开始时间 =================
+SCRIPT_START_TIME=$(date +%s)
+SCRIPT_START_DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+
 # ================= 命令行参数解析 =================
 DRY_RUN=false
 SHOW_HELP=false
@@ -532,13 +536,38 @@ fi
 
 # 6. (可选) 清理旧快照
 if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将执行: kopia maintenance run --auto"
+    log "[DRY-RUN] 将执行: kopia maintenance run --full"
 else
     log ">>> 执行策略清理..."
-    kopia maintenance run --auto || log "警告：策略清理失败"
+    kopia maintenance run --full || log "警告：策略清理失败"
 fi
 
 log ">>> 所有任务完成。"
+
+# ================= 显示耗时统计 =================
+SCRIPT_END_TIME=$(date +%s)
+SCRIPT_END_DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+TOTAL_SECONDS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
+
+# 转换为时分秒格式
+HOURS=$((TOTAL_SECONDS / 3600))
+MINUTES=$(((TOTAL_SECONDS % 3600) / 60))
+SECONDS=$((TOTAL_SECONDS % 60))
+
+echo ""
+echo "=========================================="
+echo "耗时统计:"
+echo "=========================================="
+printf "  %-20s %s\n" "开始时间:" "$SCRIPT_START_DATETIME"
+printf "  %-20s %s\n" "结束时间:" "$SCRIPT_END_DATETIME"
+if [ $HOURS -gt 0 ]; then
+    printf "  %-20s %d 小时 %d 分 %d 秒\n" "总耗时:" "$HOURS" "$MINUTES" "$SECONDS"
+elif [ $MINUTES -gt 0 ]; then
+    printf "  %-20s %d 分 %d 秒\n" "总耗时:" "$MINUTES" "$SECONDS"
+else
+    printf "  %-20s %d 秒\n" "总耗时:" "$SECONDS"
+fi
+echo "=========================================="
 
 # 发送最终通知
 if [ "$DRY_RUN" = true ]; then
