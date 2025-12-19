@@ -2,6 +2,43 @@
 
 set -eo pipefail
 
+# ================= 命令行参数解析 =================
+DRY_RUN=false
+SHOW_HELP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --dry-run|-n)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            SHOW_HELP=true
+            shift
+            ;;
+        *)
+            echo "未知参数: $1"
+            echo "使用 --help 查看帮助"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$SHOW_HELP" = true ]; then
+    echo "用法: $0 [选项]"
+    echo ""
+    echo "选项:"
+    echo "  --dry-run, -n    模拟运行，只检查依赖和显示要执行的操作，不实际执行"
+    echo "  --help, -h       显示此帮助信息"
+    echo ""
+    echo "环境变量:"
+    echo "  BASE_DIR              Docker Compose 项目目录 (默认: /opt/docker_file)"
+    echo "  IGNORE_BACKUP_ERROR   备份失败时是否继续 (默认: true)"
+    echo "  EXPECTED_REMOTE       Kopia 远程路径 (默认: gdrive:backup)"
+    echo "  PRIORITY_SERVICES_LIST 网关服务列表，空格分隔 (默认: caddy nginx gateway)"
+    exit 0
+fi
+
 # 加载环境变量配置文件（可选）
 # 支持通过 CONFIG_FILE 环境变量指定配置文件路径
 CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/.env}"
@@ -115,6 +152,16 @@ log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
 }
 
+# dry-run 模式下的模拟执行函数
+dry_run_exec() {
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY-RUN] 将执行: $*"
+        return 0
+    else
+        "$@"
+    fi
+}
+
 # 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
 send_notification() {
     local title="$1"
@@ -205,6 +252,15 @@ stop_service() {
 
     # 记录该服务原本是运行中的
     RUNNING_SERVICES["$svc_name"]=1
+
+    if [ "$DRY_RUN" = true ]; then
+        if [ -x "$svc_path/compose-down.sh" ]; then
+            log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
+        elif [ -f "$svc_path/docker-compose.yml" ]; then
+            log "[DRY-RUN] 将停止 $svc_name (使用 docker compose down)"
+        fi
+        return 0
+    fi
 
     if [ -x "$svc_path/compose-down.sh" ]; then
         log "Stopping $svc_name (使用 compose-down.sh)..."
@@ -358,34 +414,58 @@ done
 log ">>> 服务已全部停止，准备执行 Kopia 快照..."
 
 # 4.1 执行快照
-log "开始创建快照..."
 backup_success=true
-if ! kopia snapshot create "$BASE_DIR"; then
-    log "!!! 警告：备份过程中出现错误 !!!"
-    backup_success=false
-    if [ "$IGNORE_BACKUP_ERROR" = false ]; then
-        log "备份失败且 IGNORE_BACKUP_ERROR=false，恢复服务后退出..."
-        send_notification "❌ 备份失败" "Kopia 快照创建失败，服务已恢复"
-        start_all_services
-        exit 1
-    else
-        log "IGNORE_BACKUP_ERROR=true，继续恢复服务..."
-    fi
+if [ "$DRY_RUN" = true ]; then
+    log "[DRY-RUN] 将执行: kopia snapshot create $BASE_DIR"
 else
-    log ">>> 备份成功！"
+    log "开始创建快照..."
+    if ! kopia snapshot create "$BASE_DIR"; then
+        log "!!! 警告：备份过程中出现错误 !!!"
+        backup_success=false
+        if [ "$IGNORE_BACKUP_ERROR" = false ]; then
+            log "备份失败且 IGNORE_BACKUP_ERROR=false，恢复服务后退出..."
+            send_notification "❌ 备份失败" "Kopia 快照创建失败，服务已恢复"
+            start_all_services
+            exit 1
+        else
+            log "IGNORE_BACKUP_ERROR=true，继续恢复服务..."
+        fi
+    else
+        log ">>> 备份成功！"
+    fi
 fi
 
 # 5. 启动容器
-start_all_services
+if [ "$DRY_RUN" = true ]; then
+    log "[DRY-RUN] 将恢复以下服务:"
+    for svc in "${PRIORITY_SERVICES[@]}"; do
+        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
+            log "[DRY-RUN]   - $svc (网关服务)"
+        fi
+    done
+    for svc in "${NORMAL_SERVICES[@]}"; do
+        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
+            log "[DRY-RUN]   - $svc"
+        fi
+    done
+else
+    start_all_services
+fi
 
 # 6. (可选) 清理旧快照
-log ">>> 执行策略清理..."
-kopia maintenance run --auto || log "警告：策略清理失败"
+if [ "$DRY_RUN" = true ]; then
+    log "[DRY-RUN] 将执行: kopia maintenance run --auto"
+else
+    log ">>> 执行策略清理..."
+    kopia maintenance run --auto || log "警告：策略清理失败"
+fi
 
 log ">>> 所有任务完成。"
 
 # 发送最终通知
-if [ "$backup_success" = true ]; then
+if [ "$DRY_RUN" = true ]; then
+    log "[DRY-RUN] 模拟运行完成，未执行任何实际操作"
+elif [ "$backup_success" = true ]; then
     send_notification "✅ 备份成功" "所有服务已恢复运行"
 else
     send_notification "⚠️ 备份完成（有警告）" "快照创建失败，但服务已恢复运行"
