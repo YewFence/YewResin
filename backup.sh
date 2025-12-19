@@ -84,7 +84,11 @@ format_notification_response() {
         local status msg
         status=$(echo "$response" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
         msg=$(echo "$response" | sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-        printf "[%s] 通知响应: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+        if [ "$status" = "200" ]; then
+            printf "[%s] 通知发送成功: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+        else
+            printf "[%s] 通知发送失败: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+        fi
     elif [ -n "$response" ]; then
         echo "[$timestamp] 警告：通知发送失败 - $response"
     fi
