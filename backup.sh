@@ -80,21 +80,55 @@ start_service() {
     fi
 }
 
+# 启动单个服务并返回状态的函数
+start_service_with_status() {
+    local svc_path="$1"
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    if [ -x "$svc_path/compose-up.sh" ]; then
+        log "Starting $svc_name (使用 compose-up.sh)..."
+        if ! (cd "$svc_path" && ./compose-up.sh); then
+            log "警告：启动 $svc_name 失败"
+            return 1
+        fi
+    elif [ -f "$svc_path/docker-compose.yml" ]; then
+        log "Starting $svc_name ..."
+        if ! (cd "$svc_path" && docker compose up -d); then
+            log "警告：启动 $svc_name 失败"
+            return 1
+        fi
+    fi
+    return 0
+}
+
 # 启动所有服务的函数
 start_all_services() {
+    local failed_services=()
+
     log "正在恢复网关服务 (Priority)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
-            start_service "$BASE_DIR/$svc"
+            if ! start_service_with_status "$BASE_DIR/$svc"; then
+                failed_services+=("$svc")
+            fi
         fi
     done
 
     log "正在恢复普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
-            start_service "$BASE_DIR/$svc"
+            if ! start_service_with_status "$BASE_DIR/$svc"; then
+                failed_services+=("$svc")
+            fi
         fi
     done
+
+    # 如果有服务启动失败，发送通知
+    if [ ${#failed_services[@]} -gt 0 ]; then
+        log "!!! 以下服务启动失败: ${failed_services[*]}"
+        send_notification "⚠️ 服务恢复异常" "以下服务启动失败: ${failed_services[*]}"
+    fi
 }
 
 # 清理函数：确保异常退出时也能恢复服务
