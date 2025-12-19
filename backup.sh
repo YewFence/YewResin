@@ -45,6 +45,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  BASE_DIR              Docker Compose 项目目录 (默认: /opt/docker_file)"
     echo "  IGNORE_BACKUP_ERROR   备份失败时是否继续 (默认: true)"
     echo "  EXPECTED_REMOTE       Kopia 远程路径 (默认: gdrive:backup)"
+    echo "  KOPIA_PASSWORD        Kopia 仓库密码 (必须通过环境变量传入)"
     echo "  PRIORITY_SERVICES_LIST 网关服务列表，空格分隔 (默认: caddy nginx gateway)"
     exit 0
 fi
@@ -166,7 +167,7 @@ check_dependencies() {
     else
         echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
         echo "[尝试] 重新连接到 $EXPECTED_REMOTE ..."
-        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE"; then
+        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
             echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
             echo "       请检查 rclone 配置和网络连接"
             echo "       文档: https://kopia.io/docs/installation/"
@@ -235,6 +236,13 @@ print_config() {
     printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
     printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
     printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
+
+    # 脱敏处理 KOPIA_PASSWORD
+    if [ -n "$KOPIA_PASSWORD" ]; then
+        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "******(已配置)"
+    else
+        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "(未配置)"
+    fi
 
     # 脱敏处理通知 URL
     if [ -n "$APPRISE_URL" ]; then
@@ -532,14 +540,6 @@ if [ "$DRY_RUN" = true ]; then
     done
 else
     start_all_services
-fi
-
-# 6. (可选) 清理旧快照
-if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将执行: kopia maintenance run --full"
-else
-    log ">>> 执行策略清理..."
-    kopia maintenance run --full || log "警告：策略清理失败"
 fi
 
 log ">>> 所有任务完成。"
