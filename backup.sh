@@ -5,6 +5,7 @@ set -eo pipefail
 # ================= 命令行参数解析 =================
 DRY_RUN=false
 SHOW_HELP=false
+AUTO_CONFIRM=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -14,6 +15,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help|-h)
             SHOW_HELP=true
+            shift
+            ;;
+        -y|--yes)
+            AUTO_CONFIRM=true
             shift
             ;;
         *)
@@ -29,6 +34,7 @@ if [ "$SHOW_HELP" = true ]; then
     echo ""
     echo "选项:"
     echo "  --dry-run, -n    模拟运行，只检查依赖和显示要执行的操作，不实际执行"
+    echo "  -y, --yes        跳过交互式确认，自动确认执行"
     echo "  --help, -h       显示此帮助信息"
     echo ""
     echo "环境变量:"
@@ -186,6 +192,33 @@ send_notification() {
 
 # 执行依赖检查
 check_dependencies
+
+# ================= 交互式确认 =================
+if [ "$DRY_RUN" = false ] && [ "$AUTO_CONFIRM" = false ]; then
+    echo ""
+    echo "=========================================="
+    echo "⚠️  警告：即将执行备份操作"
+    echo "=========================================="
+    echo ""
+    echo "此操作将会："
+    echo "  1. 停止所有 Docker 服务"
+    echo "  2. 创建 Kopia 快照备份"
+    echo "  3. 重新启动所有服务"
+    echo ""
+    echo "💡 提示：建议先使用 --dry-run 参数测试："
+    echo "   $0 --dry-run"
+    echo ""
+    read -r -p "确认执行备份？[y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            echo "开始执行备份..."
+            ;;
+        *)
+            echo "已取消操作"
+            exit 0
+            ;;
+    esac
+fi
 
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
