@@ -498,6 +498,7 @@ log ">>> 所有任务完成。"
 # 发送最终通知
 if [ "$DRY_RUN" = true ]; then
     log "[DRY-RUN] 模拟运行完成，未执行任何实际操作"
+    send_notification "🧪 DRY-RUN 完成" "模拟运行完成，未执行任何实际操作"
 elif [ "$backup_success" = true ]; then
     send_notification "✅ 备份成功" "所有服务已恢复运行"
 else
