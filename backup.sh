@@ -190,6 +190,42 @@ send_notification() {
         --show-error || echo "警告：通知发送失败"
 }
 
+# ================= 打印配置信息 =================
+print_config() {
+    echo ""
+    echo "=========================================="
+    echo "当前配置信息"
+    echo "=========================================="
+    # 使用 printf 对齐输出，%-38s 表示左对齐占 38 字符宽度
+    local fmt="  %-38s %s\n"
+    printf "$fmt" "BASE_DIR(工作目录):" "$BASE_DIR"
+    printf "$fmt" "IGNORE_BACKUP_ERROR(忽略备份错误?):" "$IGNORE_BACKUP_ERROR"
+    printf "$fmt" "EXPECTED_REMOTE(预期远程仓库):" "$EXPECTED_REMOTE"
+    printf "$fmt" "PRIORITY_SERVICES(优先服务):" "${PRIORITY_SERVICES[*]}"
+    printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
+    printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
+    printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
+
+    # 脱敏处理通知 URL
+    if [ -n "$APPRISE_URL" ]; then
+        local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
+        printf "$fmt" "APPRISE_URL(通知服务URL):" "$masked_url"
+    else
+        printf "$fmt" "APPRISE_URL(通知服务URL):" "(未配置)"
+    fi
+
+    if [ -n "$APPRISE_NOTIFY_URL" ]; then
+        local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
+        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "$masked_notify"
+    else
+        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "(未配置)"
+    fi
+    echo "=========================================="
+    echo ""
+}
+
+print_config
+
 # 执行依赖检查
 check_dependencies
 
