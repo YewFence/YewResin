@@ -279,7 +279,7 @@ stop_service() {
 
     # 先检查服务是否在运行
     if ! is_service_running "$svc_path"; then
-        log "跳过 $svc_name (服务未运行)"
+        log "跳过 $svc_name (无服务/服务未运行)"
         return 0
     fi
 
@@ -470,7 +470,7 @@ fi
 
 # 5. 启动容器
 if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将恢复以下服务:"
+    log "[DRY-RUN] 将依序恢复以下服务:"
     for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
             log "[DRY-RUN]   - $svc (网关服务)"
