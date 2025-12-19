@@ -74,6 +74,22 @@ EXPECTED_REMOTE="${EXPECTED_REMOTE:-gdrive:backup}"
 # ==========================================
 
 # ================= 依赖检查 =================
+# 格式化通知响应输出
+format_notification_response() {
+    local response="$1"
+    local timestamp
+    timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+    if echo "$response" | grep -q '"status"'; then
+        local status msg
+        status=$(echo "$response" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
+        msg=$(echo "$response" | sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+        printf "[%s] 通知响应: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+    elif [ -n "$response" ]; then
+        echo "[$timestamp] 警告：通知发送失败 - $response"
+    fi
+}
+
 # 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
 send_dep_notification() {
     local title="$1"
@@ -83,7 +99,8 @@ send_dep_notification() {
         return 0
     fi
 
-    curl -X POST "$APPRISE_URL" \
+    local response
+    response=$(curl -X POST "$APPRISE_URL" \
         -H "Content-Type: application/json" \
         -d "{
             \"urls\": \"$APPRISE_NOTIFY_URL\",
@@ -92,7 +109,9 @@ send_dep_notification() {
         }" \
         --max-time 10 \
         --silent \
-        --show-error || echo "警告：通知发送失败"
+        --show-error 2>&1)
+
+    format_notification_response "$response"
 }
 
 check_dependencies() {
@@ -178,7 +197,8 @@ send_notification() {
         return 0
     fi
 
-    curl -X POST "$APPRISE_URL" \
+    local response
+    response=$(curl -X POST "$APPRISE_URL" \
         -H "Content-Type: application/json" \
         -d "{
             \"urls\": \"$APPRISE_NOTIFY_URL\",
@@ -187,7 +207,9 @@ send_notification() {
         }" \
         --max-time 10 \
         --silent \
-        --show-error || echo "警告：通知发送失败"
+        --show-error 2>&1)
+
+    format_notification_response "$response"
 }
 
 # ================= 打印配置信息 =================
