@@ -10,7 +10,6 @@
 - 支持优先级服务（如网关）的顺序控制：最后停止，最先启动
 - 只重启原本运行中的服务，不会启动原本停止的服务
 - 支持 [Apprise](https://github.com/caronc/apprise-api) 通知（Telegram、微信等），可部署到 Vercel
-- 支持 GitHub Actions 定时运行，方便在 GitHub 查看执行日志
 - 异常退出时自动恢复服务
 - 支持 dry-run 模式预览操作
 - 防止重复运行的锁机制
@@ -38,6 +37,10 @@ sudo apt update && sudo apt install kopia
 
 # 连接 Kopia 仓库
 kopia repository connect rclone --remote-path="gdrive:backup"
+
+# 下载该脚本
+git clone https://github.com/YewFence/YewResin.git
+cd YewResin
 ```
 
 ### 2. 配置
@@ -76,6 +79,12 @@ APPRISE_NOTIFY_URL=tgram://bot_token/chat_id
 ./backup.sh -y
 ```
 
+### 4. 定时任务
+> 按需配置，此处我们以每天凌晨三点运行为例
+```bash
+(crontab -l 2>/dev/null; echo '0 3 * * * /path/to/backup.sh -y >> /var/log/docker-backup.log 2>&1') | crontab -
+```
+
 ## 命令行参数
 
 | 参数 | 说明 |
@@ -96,17 +105,6 @@ APPRISE_NOTIFY_URL=tgram://bot_token/chat_id
 | `APPRISE_URL` | - | Apprise 服务地址 |
 | `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
 | `CONFIG_FILE` | `./backup.sh` 同目录的 `.env` | 配置文件路径 |
-
-## 定时任务示例
-
-```bash
-# 每天凌晨 3 点执行备份
-0 3 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
-```
-
-## Github Action 配置
-
-请参考[Github Action 配置文档](.github/README.md)
 
 ## 目录结构要求
 
@@ -137,14 +135,98 @@ APPRISE_NOTIFY_URL=tgram://bot_token/chat_id
 
 ## 注意事项
 
-如果 `BASE_DIR` 下存在权限敏感的目录（如 `caddy`、`ssl`、`ssh` 等），Kopia 可能会因权限问题报错。虽然备份仍会完成，但建议在 Kopia 策略中忽略这些目录：
+如果 `BASE_DIR` 下存在权限敏感的目录（如 `caddy/data/caddy`、`ssl`、`ssh` 等），Kopia 可能会因权限问题报错。虽然备份仍会完成，但建议在 Kopia 策略中忽略这些目录：
+
+## 定时任务配置
+
+### Cron 表达式格式
+
+```
+┌───────────── 分钟 (0-59)
+│ ┌─────────── 小时 (0-23)
+│ │ ┌───────── 日期 (1-31)
+│ │ │ ┌─────── 月份 (1-12)
+│ │ │ │ ┌───── 星期 (0-7，0 和 7 都表示周日)
+│ │ │ │ │
+* * * * *
+```
+
+### 常用配置示例
 
 ```bash
-# 设置忽略规则
-kopia policy set /opt/docker_file --add-ignore "caddy/**"
-kopia policy set /opt/docker_file --add-ignore "ssl/**"
-kopia policy set /opt/docker_file --add-ignore ".ssh/**"
+# 编辑 crontab
+crontab -e
+
+# 每天凌晨 3 点执行备份
+0 3 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+
+# 每周日凌晨 2 点执行备份
+0 2 * * 0 /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+
+# 每 6 小时执行一次（0点、6点、12点、18点）
+0 */6 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+
+# 每天凌晨 3 点和 15 点执行（一天两次）
+0 3,15 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+
+# 每月 1 日和 15 日凌晨 4 点执行
+0 4 1,15 * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
 ```
+
+### 使用 Systemd Timer
+
+相比 cron，systemd timer 提供更好的日志管理和错误处理。
+
+创建服务文件 `/etc/systemd/system/yewresin-backup.service`：
+
+```ini
+[Unit]
+Description=YewResin Docker Backup
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/backup.sh -y
+StandardOutput=journal
+StandardError=journal
+```
+
+创建定时器文件 `/etc/systemd/system/yewresin-backup.timer`：
+
+```ini
+[Unit]
+Description=Run YewResin backup daily
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+```
+
+启用定时器：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now yewresin-backup.timer
+
+# 查看定时器状态
+systemctl list-timers yewresin-backup.timer
+
+# 查看备份日志
+journalctl -u yewresin-backup.service -f
+```
+
+### 注意事项
+
+- **使用绝对路径**：cron 环境的 PATH 与交互式 shell 不同，务必使用脚本的绝对路径
+- **日志轮转**：建议配合 logrotate 管理日志文件大小
+- **错误通知**：脚本已集成 Apprise 通知，配置后可自动发送备份结果
+- **避免重叠**：脚本内置锁机制，防止多个备份任务同时运行
+
 
 ## License
 
