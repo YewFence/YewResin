@@ -50,11 +50,71 @@ send_notification() {
         --show-error || log "警告：通知发送失败"
 }
 
+# 记录原本运行中的服务
+declare -A RUNNING_SERVICES
+
+# 检查服务是否正在运行
+is_service_running() {
+    local svc_path="$1"
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    # 方法1: 如果有 compose-status.sh 脚本，优先使用它
+    if [ -x "$svc_path/compose-status.sh" ]; then
+        if (cd "$svc_path" && ./compose-status.sh) >/dev/null 2>&1; then
+            return 0
+        fi
+        return 1
+    fi
+
+    # 方法1.5: 如果有 compose-log.sh，也尝试用它检查（能查看日志说明服务在运行）
+    if [ -x "$svc_path/compose-log.sh" ]; then
+        if (cd "$svc_path" && timeout 2 ./compose-log.sh --tail=1) >/dev/null 2>&1; then
+            return 0
+        fi
+    fi
+
+    # 方法2: 查找目录下所有 compose 相关的 yaml 文件
+    local yaml_files=()
+    while IFS= read -r -d '' file; do
+        yaml_files+=("$file")
+    done < <(find "$svc_path" -maxdepth 1 \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "compose*.yml" -o -name "compose*.yaml" \) -print0 2>/dev/null)
+
+    # 如果找到了 yaml 文件，尝试用第一个检查状态
+    if [ ${#yaml_files[@]} -gt 0 ]; then
+        local running_containers
+        running_containers=$(cd "$svc_path" && docker compose ps -q 2>/dev/null | wc -l)
+        if [ "$running_containers" -gt 0 ]; then
+            return 0
+        fi
+    fi
+
+    # 方法3: 如果有 compose-up.sh 但没有 yaml 文件，用项目名检查
+    if [ -x "$svc_path/compose-up.sh" ]; then
+        local running_containers
+        running_containers=$(docker compose -p "$svc_name" ps -q 2>/dev/null | wc -l)
+        if [ "$running_containers" -gt 0 ]; then
+            return 0
+        fi
+    fi
+
+    return 1
+}
+
 # 停止单个服务的函数
 stop_service() {
     local svc_path="$1"
     local svc_name
     svc_name=$(basename "$svc_path")
+
+    # 先检查服务是否在运行
+    if ! is_service_running "$svc_path"; then
+        log "跳过 $svc_name (服务未运行)"
+        return 0
+    fi
+
+    # 记录该服务原本是运行中的
+    RUNNING_SERVICES["$svc_name"]=1
 
     if [ -x "$svc_path/compose-down.sh" ]; then
         log "Stopping $svc_name (使用 compose-down.sh)..."
@@ -71,6 +131,12 @@ start_service() {
     local svc_name
     svc_name=$(basename "$svc_path")
 
+    # 检查该服务是否原本在运行
+    if [ -z "${RUNNING_SERVICES[$svc_name]}" ]; then
+        log "跳过启动 $svc_name (原本未运行)"
+        return 0
+    fi
+
     if [ -x "$svc_path/compose-up.sh" ]; then
         log "Starting $svc_name (使用 compose-up.sh)..."
         (cd "$svc_path" && ./compose-up.sh) || log "警告：启动 $svc_name 失败"
@@ -85,6 +151,12 @@ start_service_with_status() {
     local svc_path="$1"
     local svc_name
     svc_name=$(basename "$svc_path")
+
+    # 检查该服务是否原本在运行
+    if [ -z "${RUNNING_SERVICES[$svc_name]}" ]; then
+        log "跳过启动 $svc_name (原本未运行)"
+        return 0
+    fi
 
     if [ -x "$svc_path/compose-up.sh" ]; then
         log "Starting $svc_name (使用 compose-up.sh)..."
