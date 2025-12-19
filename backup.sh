@@ -265,39 +265,22 @@ is_service_running() {
     local svc_name
     svc_name=$(basename "$svc_path")
 
-    # 方法1: 如果有 compose-status.sh 脚本，优先使用它
-    if [ -x "$svc_path/compose-status.sh" ]; then
-        if (cd "$svc_path" && ./compose-status.sh) >/dev/null 2>&1; then
-            return 0
-        fi
-        return 1
+    # 检查是否有 compose 相关文件（yaml 或脚本）
+    local has_compose=false
+    if [ -x "$svc_path/compose-status.sh" ] || [ -x "$svc_path/compose-up.sh" ] || [ -x "$svc_path/compose-log.sh" ]; then
+        has_compose=true
+    elif find "$svc_path" -maxdepth 1 \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "compose*.yml" -o -name "compose*.yaml" \) -print -quit 2>/dev/null | grep -q .; then
+        has_compose=true
     fi
 
-    # 方法1.5: 如果有 compose-log.sh，也尝试用它检查（能查看日志说明服务在运行）
-    if [ -x "$svc_path/compose-log.sh" ]; then
-        if (cd "$svc_path" && timeout 2 ./compose-log.sh --tail=1) >/dev/null 2>&1; then
-            return 0
-        fi
-    fi
-
-    # 方法2: 查找目录下所有 compose 相关的 yaml 文件
-    local yaml_files=()
-    while IFS= read -r -d '' file; do
-        yaml_files+=("$file")
-    done < <(find "$svc_path" -maxdepth 1 \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "compose*.yml" -o -name "compose*.yaml" \) -print0 2>/dev/null)
-
-    # 如果找到了 yaml 文件，尝试用第一个检查状态
-    if [ ${#yaml_files[@]} -gt 0 ]; then
+    if [ "$has_compose" = true ]; then
         local running_containers
+        # 优先在目录下执行（自动识别 yaml），否则用项目名
         running_containers=$(cd "$svc_path" && docker compose ps -q 2>/dev/null | wc -l)
         if [ "$running_containers" -gt 0 ]; then
             return 0
         fi
-    fi
-
-    # 方法3: 如果有 compose-up.sh 但没有 yaml 文件，用项目名检查
-    if [ -x "$svc_path/compose-up.sh" ]; then
-        local running_containers
+        # 备用：用项目名检查
         running_containers=$(docker compose -p "$svc_name" ps -q 2>/dev/null | wc -l)
         if [ "$running_containers" -gt 0 ]; then
             return 0
