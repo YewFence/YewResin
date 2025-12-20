@@ -17,7 +17,6 @@ jobs:
       - name: Run make
         run: |
           make
-          chmod +x yewresin.sh
 
       - name: Create Tagged Release
         uses: softprops/action-gh-release@v2
