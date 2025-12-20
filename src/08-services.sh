@@ -136,12 +136,12 @@ cleanup() {
         send_notification "❌ 备份异常" "脚本异常退出 (exit code: $exit_code)，正在尝试恢复服务..."
         start_all_services
     fi
+    # 上传日志到 Gist
+    upload_to_gist
+    # 移除锁文件
     rm -rf "$LOCK_FILE"
     # 清理临时日志文件
     if [ -f "$LOG_OUTPUT_FILE" ]; then
         rm -f "$LOG_OUTPUT_FILE"
     fi
-        
-    # 上传日志到 Gist
-    upload_to_gist
 }
