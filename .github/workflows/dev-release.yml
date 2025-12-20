@@ -28,3 +28,4 @@ jobs:
           title: "Development Build (Latest)"
           files: |
             backup.sh
+            .env.example
