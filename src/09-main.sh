@@ -136,14 +136,14 @@ TOTAL_SECS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
 HOURS=$((TOTAL_SECS / 3600))
 MINUTES=$(((TOTAL_SECS % 3600) / 60))
 SECS=$((TOTAL_SECS % 60))
-log "  %-20s %s\n" "开始时间:" "$SCRIPT_START_DATETIME"
-log "  %-20s %s\n" "结束时间:" "$SCRIPT_END_DATETIME"
+log "$(printf "  %-20s %s" "开始时间:" "$SCRIPT_START_DATETIME")"
+log "$(printf "  %-20s %s" "结束时间:" "$SCRIPT_END_DATETIME")"
 if [ $HOURS -gt 0 ]; then
-    log "  %-20s %d 小时 %d 分 %d 秒\n" "总耗时:" "$HOURS" "$MINUTES" "$SECS"
+    log "$(printf "  %-20s %d 小时 %d 分 %d 秒" "总耗时:" "$HOURS" "$MINUTES" "$SECS")"
 elif [ $MINUTES -gt 0 ]; then
-    log "  %-20s %d 分 %d 秒\n" "总耗时:" "$MINUTES" "$SECS"
+    log "$(printf "  %-20s %d 分 %d 秒" "总耗时:" "$MINUTES" "$SECS")"
 else
-    log "  %-20s %d 秒\n" "总耗时:" "$SECS"
+    log "$(printf "  %-20s %d 秒" "总耗时:" "$SECS")"
 fi
 echo "=========================================="
 
