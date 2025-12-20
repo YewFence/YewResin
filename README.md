@@ -39,7 +39,7 @@ kopia repository connect rclone --remote-path="gdrive:backup"
 # 下载该脚本
 mkdir ~/yewresin
 cd ~/yewresin
-wget https://github.com/YewFence/YewResin/releases/latest/download/backup.sh
+wget https://github.com/YewFence/YewResin/releases/download/latest/backup.sh
 ```
 > 也可以下载源码后自定义逻辑
 > ```bash
