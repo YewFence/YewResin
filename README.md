@@ -123,7 +123,9 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 | `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）|
 | `CONFIG_FILE` | `./backup.sh` 同目录的 `.env` | 配置文件路径 |
 
-## 目录结构要求
+## 关键要求
+
+### 目录结构要求
 
 ```
 /opt/docker_file/           # BASE_DIR
@@ -139,6 +141,11 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 ```
 
 脚本会自动识别包含 `docker-compose.yml` 或 `compose*.yaml` 的目录作为服务。
+
+### 启停逻辑
+
+- 若服务目录下有 `docker-compose.yml` 脚本将尝试使用 `docker compose up -d` `docker compose down` 启停服务
+- 若服务目录下无 `docker-compose.yml` 脚本将尝试使用 `compose-down.sh`/`compose-up.sh` 启停服务，请确认启停脚本已正确配置
 
 ## 开发说明
 
