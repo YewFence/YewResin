@@ -30,7 +30,7 @@ check_dependencies() {
     if [ "$has_error" = true ]; then
         echo ""
         echo "[失败] 依赖检查未通过，脚本退出"
-        send_dep_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
+        send_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
         exit 1
     fi
 

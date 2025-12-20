@@ -20,30 +20,6 @@ format_notification_response() {
     fi
 }
 
-# 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
-send_dep_notification() {
-    local title="$1"
-    local body="$2"
-
-    if [ -z "$APPRISE_URL" ] || [ -z "$APPRISE_NOTIFY_URL" ]; then
-        return 0
-    fi
-
-    local response
-    response=$(curl -X POST "$APPRISE_URL" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"urls\": \"$APPRISE_NOTIFY_URL\",
-            \"body\": \"$body\",
-            \"title\": \"$title\"
-        }" \
-        --max-time 10 \
-        --silent \
-        --show-error 2>&1)
-
-    format_notification_response "$response"
-}
-
 # 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
 send_notification() {
     local title="$1"
