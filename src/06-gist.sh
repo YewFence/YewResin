@@ -29,7 +29,7 @@ cleanup_old_gist_logs() {
 
     # 计算文件总数
     local total_files
-    total_files=$(echo "$all_files" | grep -c .)
+    total_files=$(echo "$all_files" | grep -c . || echo 0)
 
     # 如果启用了保留第一个文件，从列表中排除
     local files_to_consider="$all_files"
@@ -42,7 +42,7 @@ cleanup_old_gist_logs() {
 
     # 计算可清理的文件数量
     local cleanable_count
-    cleanable_count=$(echo "$files_to_consider" | grep -c . || echo 0)
+    cleanable_count=$(echo "$files_to_consider" | sed '/^$/d' | wc -l)
 
     # 如果文件数量未超过限制，跳过清理
     if [ "$cleanable_count" -le "$GIST_MAX_LOGS" ]; then
@@ -59,21 +59,8 @@ cleanup_old_gist_logs() {
     files_to_delete=$(echo "$files_to_consider" | head -n "$delete_count")
 
     # 构建删除 payload
-    local delete_payload="{"
-    local first=true
-    while IFS= read -r filename; do
-        [ -z "$filename" ] && continue
-        if [ "$first" = true ]; then
-            first=false
-        else
-            delete_payload+=","
-        fi
-        # 使用 jq 转义文件名
-        local escaped_filename
-        escaped_filename=$(echo "$filename" | jq -Rs .)
-        delete_payload+="$escaped_filename:null"
-    done <<< "$files_to_delete"
-    delete_payload+="}"
+    local delete_payload
+    delete_payload=$(echo "$files_to_delete" | grep -v '^$' | jq -R '{ (.): null }' | jq -s 'add // {}')
 
     # 执行删除
     local delete_response
@@ -102,7 +89,7 @@ upload_to_gist() {
     if [ -z "$HOURS" ]; then
         HOURS=0
         MINUTES=0
-        SECONDS=0
+        SECS=0
     fi
 
     log "上传日志到 GitHub Gist..."
@@ -130,7 +117,7 @@ YewResin Docker 备份日志
 ========================================
 日期: $SCRIPT_START_DATETIME
 状态: $([ "$backup_success" = true ] && echo "✅ 成功" || echo "⚠️ 有警告")
-耗时: $([ $HOURS -gt 0 ] && echo "$HOURS 小时 ")$([ $MINUTES -gt 0 ] && echo "$MINUTES 分 ")$SECONDS 秒
+耗时: $([ $HOURS -gt 0 ] && echo "$HOURS 小时 ")$([ $MINUTES -gt 0 ] && echo "$MINUTES 分 ")$SECS 秒
 ========================================
 
 基础配置信息:
@@ -155,16 +142,10 @@ EOF
 
     # 构建 JSON payload
     local payload
-    payload=$(cat <<EOF
-{
-  "files": {
-    "$filename": {
-      "content": $log_content
-    }
-  }
-}
-EOF
-)
+    payload=$(jq -n \
+        --arg filename "$filename" \
+        --argjson content "$log_content" \
+        '{files: {($filename): {content: $content}}}')
 
     # 上传到 Gist
     local response
