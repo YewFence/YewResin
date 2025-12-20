@@ -2,8 +2,6 @@
 
 一个自动化的 Docker Compose 服务备份脚本，使用 Kopia + rclone 实现本地快照与云端同步。
 
-> 建议先 Fork 本仓库，然后根据自己的需求修改配置。
-
 ## 功能特点
 
 - 自动停止所有 Docker Compose 服务，创建一致性快照
@@ -46,6 +44,11 @@ cd YewResin
 ### 2. 配置
 
 创建 `.env` 文件（与 `backup.sh` 同目录）：
+
+```bash
+# 复制示例文件
+cp .env.example .env
+```
 
 ```bash
 # Docker Compose 项目总目录
@@ -117,7 +120,7 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 | `GIST_ID` | - | GitHub Gist ID（日志上传目标）|
 | `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 |
 | `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）|
-| `GIST_KEEP_FIRST_FILE` | `false` | 清理时保留第一个文件（用于 Gist 标题）|
+| `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）|
 | `CONFIG_FILE` | `./backup.sh` 同目录的 `.env` | 配置文件路径 |
 
 ## 目录结构要求
