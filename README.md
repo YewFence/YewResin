@@ -62,8 +62,9 @@ wget https://github.com/YewFence/YewResin/releases/download/latest/backup.sh
 创建 `.env` 文件（与 `backup.sh` 同目录）：
 
 ```bash
-# 复制示例文件
-cp .env.example .env
+# 在脚本所在目录下载示例文件
+wget https://github.com/YewFence/YewResin/releases/download/latest/default.env.example
+cp default.env.example .env
 ```
 
 ```bash
