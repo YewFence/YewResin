@@ -16,7 +16,7 @@ exec 2>&1
 log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
 }
-
+# shellcheck shell=bash
 # ================= 命令行参数解析 =================
 DRY_RUN=false
 SHOW_HELP=false
@@ -64,7 +64,7 @@ fi
 # ================= 配置加载 =================
 # 加载环境变量配置文件（可选）
 # 支持通过 CONFIG_FILE 环境变量指定配置文件路径
-CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/.env}"
+CONFIG_FILE="${CONFIG_FILE:-$(dirname "${BASH_SOURCE[0]}")/.env}"
 if [ -f "$CONFIG_FILE" ]; then
     # shellcheck source=/dev/null
     source "$CONFIG_FILE"
@@ -112,7 +112,16 @@ print_config() {
     printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
     printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
     printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
-
+    # Gist 配置
+    if [ -n "$GIST_TOKEN" ] && [ -n "$GIST_ID" ]; then
+        printf "$fmt" "GIST_ID(Gist ID):" "$GIST_ID"
+        printf "$fmt" "GIST_LOG_PREFIX(Gist 日志前缀):" "$GIST_LOG_PREFIX"
+        printf "$fmt" "GIST_MAX_LOGS(Gist 最大日志数):" "$GIST_MAX_LOGS"
+        printf "$fmt" "GIST_KEEP_FIRST_FILE(Gist 保留首文件?):" "$GIST_KEEP_FIRST_FILE"
+        printf "$fmt" "GIST_TOKEN(Gist Token):" "******(已配置)"
+    else
+        printf "$fmt" "GIST 日志上传:" "(未配置)"
+    fi
     # 脱敏处理 KOPIA_PASSWORD
     if [ -n "$KOPIA_PASSWORD" ]; then
         printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "******(已配置)"
@@ -122,14 +131,22 @@ print_config() {
 
     # 脱敏处理通知 URL
     if [ -n "$APPRISE_URL" ]; then
-        local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
+        if [ ${#APPRISE_URL} -gt 35 ]; then
+            local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
+        else
+            local masked_url="****(已配置)"
+        fi
         printf "$fmt" "APPRISE_URL(通知服务URL):" "$masked_url"
     else
         printf "$fmt" "APPRISE_URL(通知服务URL):" "(未配置)"
     fi
 
     if [ -n "$APPRISE_NOTIFY_URL" ]; then
-        local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
+        if [ ${#APPRISE_NOTIFY_URL} -gt 23 ]; then
+            local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
+        else
+            local masked_notify="****(已配置)"
+        fi
         printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "$masked_notify"
     else
         printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "(未配置)"
@@ -168,30 +185,6 @@ format_notification_response() {
     elif [ -n "$response" ]; then
         echo "[$timestamp] 警告：通知发送失败 - $response"
     fi
-}
-
-# 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
-send_dep_notification() {
-    local title="$1"
-    local body="$2"
-
-    if [ -z "$APPRISE_URL" ] || [ -z "$APPRISE_NOTIFY_URL" ]; then
-        return 0
-    fi
-
-    local response
-    response=$(curl -X POST "$APPRISE_URL" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"urls\": \"$APPRISE_NOTIFY_URL\",
-            \"body\": \"$body\",
-            \"title\": \"$title\"
-        }" \
-        --max-time 10 \
-        --silent \
-        --show-error 2>&1)
-
-    format_notification_response "$response"
 }
 
 # 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
@@ -249,7 +242,7 @@ cleanup_old_gist_logs() {
 
     # 计算文件总数
     local total_files
-    total_files=$(echo "$all_files" | grep -c .)
+    total_files=$(echo "$all_files" | grep -c . || echo 0)
 
     # 如果启用了保留第一个文件，从列表中排除
     local files_to_consider="$all_files"
@@ -262,7 +255,7 @@ cleanup_old_gist_logs() {
 
     # 计算可清理的文件数量
     local cleanable_count
-    cleanable_count=$(echo "$files_to_consider" | grep -c . || echo 0)
+    cleanable_count=$(echo "$files_to_consider" | sed '/^$/d' | wc -l)
 
     # 如果文件数量未超过限制，跳过清理
     if [ "$cleanable_count" -le "$GIST_MAX_LOGS" ]; then
@@ -279,21 +272,8 @@ cleanup_old_gist_logs() {
     files_to_delete=$(echo "$files_to_consider" | head -n "$delete_count")
 
     # 构建删除 payload
-    local delete_payload="{"
-    local first=true
-    while IFS= read -r filename; do
-        [ -z "$filename" ] && continue
-        if [ "$first" = true ]; then
-            first=false
-        else
-            delete_payload+=","
-        fi
-        # 使用 jq 转义文件名
-        local escaped_filename
-        escaped_filename=$(echo "$filename" | jq -Rs .)
-        delete_payload+="$escaped_filename:null"
-    done <<< "$files_to_delete"
-    delete_payload+="}"
+    local delete_payload
+    delete_payload=$(echo "$files_to_delete" | grep -v '^$' | jq -R '{ (.): null }' | jq -s 'add // {}')
 
     # 执行删除
     local delete_response
@@ -322,7 +302,7 @@ upload_to_gist() {
     if [ -z "$HOURS" ]; then
         HOURS=0
         MINUTES=0
-        SECONDS=0
+        SECS=0
     fi
 
     log "上传日志到 GitHub Gist..."
@@ -350,7 +330,7 @@ YewResin Docker 备份日志
 ========================================
 日期: $SCRIPT_START_DATETIME
 状态: $([ "$backup_success" = true ] && echo "✅ 成功" || echo "⚠️ 有警告")
-耗时: $([ $HOURS -gt 0 ] && echo "$HOURS 小时 ")$([ $MINUTES -gt 0 ] && echo "$MINUTES 分 ")$SECONDS 秒
+耗时: $([ $HOURS -gt 0 ] && echo "$HOURS 小时 ")$([ $MINUTES -gt 0 ] && echo "$MINUTES 分 ")$SECS 秒
 ========================================
 
 基础配置信息:
@@ -375,16 +355,10 @@ EOF
 
     # 构建 JSON payload
     local payload
-    payload=$(cat <<EOF
-{
-  "files": {
-    "$filename": {
-      "content": $log_content
-    }
-  }
-}
-EOF
-)
+    payload=$(jq -n \
+        --arg filename "$filename" \
+        --argjson content "$log_content" \
+        '{files: {($filename): {content: $content}}}')
 
     # 上传到 Gist
     local response
@@ -437,12 +411,12 @@ check_dependencies() {
     if [ "$has_error" = true ]; then
         echo ""
         echo "[失败] 依赖检查未通过，脚本退出"
-        send_dep_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
+        send_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
         exit 1
     fi
 
     # 检查 Kopia 仓库连接状态并尝试连接
-    echo "[检查] Kopia 仓库连接状态..."
+    echo "[检查] Kopia 仓库 $EXPECTED_REMOTE 连接状态..."
     local repo_status
     repo_status=$(kopia repository status 2>&1)
 
@@ -450,22 +424,35 @@ check_dependencies() {
         echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"
     else
         echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
-        echo "[尝试] 重新连接到 $EXPECTED_REMOTE ..."
-        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
-            echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
-            echo "       请检查 rclone 配置和网络连接"
-            echo "       文档: https://kopia.io/docs/installation/"
+        if [ -n "$KOPIA_PASSWORD" ]; then
+            echo "[尝试] 使用已配置的 KOPIA_PASSWORD 尝试重新连接仓库 $KOPIA_PASSWORD ..."
+            if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
+                echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
+                echo "       请检查 rclone 配置和网络连接"
+                echo "       文档: https://kopia.io/docs/installation/"
+                echo ""
+                echo "[失败] 依赖检查未通过，脚本退出"
+                send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
+                exit 1
+        else
+            echo "[提示] 未检测到 KOPIA_PASSWORD，无法自动连接仓库"
+            echo "       请设置 KOPIA_PASSWORD 环境变量后手动重试"
             echo ""
             echo "[失败] 依赖检查未通过，脚本退出"
-            send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
+            send_dep_notification "❌ 备份失败" "Kopia 仓库未连接且未配置 KOPIA_PASSWORD，无法自动重试"
             exit 1
+        fi
         fi
         echo "[✓] 成功连接到 $EXPECTED_REMOTE"
     fi
 
     echo "[✓] 依赖检查通过: rclone 和 kopia 均已正确配置"
 }
-
+#!/bin/bash
+# shellcheck source-path=SCRIPTDIR
+# This module is sourced by backup.sh and provides service management functions.
+# Required external variables: DRY_RUN, BASE_DIR, LOCK_FILE, PRIORITY_SERVICES, NORMAL_SERVICES
+# Required external functions: log(), send_notification()
 # ================= 服务管理 =================
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
@@ -531,27 +518,6 @@ stop_service() {
     elif [ -f "$svc_path/docker-compose.yml" ]; then
         log "Stopping $svc_name ..."
         (cd "$svc_path" && docker compose down) || log "警告：停止 $svc_name 失败"
-    fi
-}
-
-# 启动单个服务的函数
-start_service() {
-    local svc_path="$1"
-    local svc_name
-    svc_name=$(basename "$svc_path")
-
-    # 检查该服务是否原本在运行
-    if [ -z "${RUNNING_SERVICES[$svc_name]}" ]; then
-        log "跳过启动 $svc_name (原本未运行)"
-        return 0
-    fi
-
-    if [ -x "$svc_path/compose-up.sh" ]; then
-        log "Starting $svc_name (使用 compose-up.sh)..."
-        (cd "$svc_path" && ./compose-up.sh) || log "警告：启动 $svc_name 失败"
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Starting $svc_name ..."
-        (cd "$svc_path" && docker compose up -d) || log "警告：启动 $svc_name 失败"
     fi
 }
 
@@ -621,6 +587,10 @@ cleanup() {
         start_all_services
     fi
     rm -rf "$LOCK_FILE"
+    # 清理临时日志文件
+    if [ -f "$LOG_OUTPUT_FILE" ]; then
+        rm -f "$LOG_OUTPUT_FILE"
+    fi
 }
 
 # ================= 主流程 =================
@@ -788,8 +758,3 @@ fi
 
 # 上传日志到 Gist
 upload_to_gist
-
-# 清理临时日志文件
-if [ -f "$LOG_OUTPUT_FILE" ]; then
-    rm -f "$LOG_OUTPUT_FILE"
-fi
