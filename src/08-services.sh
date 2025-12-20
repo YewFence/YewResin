@@ -137,4 +137,8 @@ cleanup() {
         start_all_services
     fi
     rm -rf "$LOCK_FILE"
+    # 清理临时日志文件
+    if [ -f "$LOG_OUTPUT_FILE" ]; then
+        rm -f "$LOG_OUTPUT_FILE"
+    fi
 }

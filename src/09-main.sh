@@ -164,8 +164,3 @@ fi
 
 # 上传日志到 Gist
 upload_to_gist
-
-# 清理临时日志文件
-if [ -f "$LOG_OUTPUT_FILE" ]; then
-    rm -f "$LOG_OUTPUT_FILE"
-fi
