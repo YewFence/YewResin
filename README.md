@@ -41,6 +41,9 @@ mkdir ~/yewresin
 cd ~/yewresin
 wget https://github.com/YewFence/YewResin/releases/download/latest/backup.sh
 ```
+
+该标签内的脚本会在main分支推送后自动更新，也可以自行下载指定版本的脚本
+
 > 也可以下载源码后自定义逻辑
 > ```bash
 > git clone https://github.com/YewFence/YewResin.git
