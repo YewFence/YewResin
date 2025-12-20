@@ -141,8 +141,8 @@ EXPECTED_REMOTE=gdrive:backup
 
 ### 启停逻辑
 
-- 若服务目录下有 `docker-compose.yml` 脚本将尝试使用 `docker compose up -d` `docker compose down` 启停服务
-- 若服务目录下无 `docker-compose.yml` 脚本将尝试使用 `compose-down.sh`/`compose-up.sh` 启停服务，请确认启停脚本已正确配置
+- 若服务目录下有 `docker-compose.yml` 脚本将尝试使用 `docker compose up -d` `docker compose stop` 启停服务
+- 若服务目录下无 `docker-compose.yml` 脚本将尝试使用 `compose-stop.sh`/`compose-down.sh`/`compose-up.sh` 启停服务，请确认启停脚本已正确配置
 
 ## 开发说明
 

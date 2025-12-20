@@ -54,22 +54,25 @@ stop_service() {
     RUNNING_SERVICES["$svc_name"]=1
 
     if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-down.sh" ]; then
+        if [ -x "$svc_path/compose-stopn.sh" ]; then
+            log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
+        elif [ -x "$svc_path/compose-down.sh" ]; then
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
         elif [ -f "$svc_path/docker-compose.yml" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 docker compose down)"
+            log "[DRY-RUN] 将停止 $svc_name (使用 docker compose stop)"
         else 
             log "[DRY-RUN] 警告：停止 $svc_name 失败，无法识别停止方法"
         fi
         return 0
     fi
-
-    if [ -x "$svc_path/compose-down.sh" ]; then
+    if [ -x "$svc_path/compose-stopn.sh" ]; then
+        log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
+    elif [ -x "$svc_path/compose-down.sh" ]; then
         log "Stopping $svc_name (使用 compose-down.sh)..."
         (cd "$svc_path" && ./compose-down.sh) || log "警告：停止 $svc_name 失败"
     elif [ -f "$svc_path/docker-compose.yml" ]; then
         log "Stopping $svc_name ..."
-        (cd "$svc_path" && docker compose down) || log "警告：停止 $svc_name 失败"
+        (cd "$svc_path" && docker compose stop) || log "警告：停止 $svc_name 失败"
     else 
         log "警告：停止 $svc_name 失败，无法识别停止方法"
     fi
