@@ -67,21 +67,7 @@ log ">>> 开始执行深夜维护..."
 send_notification "🔄 备份开始" "开始执行服务器备份任务"
 
 # 3. 停止容器
-# 3.1 先停止普通服务
-log "停止普通服务..."
-for svc in "${NORMAL_SERVICES[@]}"; do
-    if [ -d "$BASE_DIR/$svc" ]; then
-        stop_service "$BASE_DIR/$svc"
-    fi
-done
-
-# 3.2 最后停止网关服务
-log "停止网关服务 (Priority)..."
-for svc in "${PRIORITY_SERVICES[@]}"; do
-    if [ -d "$BASE_DIR/$svc" ]; then
-        stop_service "$BASE_DIR/$svc"
-    fi
-done
+stop_all_services
 
 # 4. 执行 Kopia 备份
 log ">>> 服务已全部停止，准备执行 Kopia 快照..."
@@ -109,21 +95,7 @@ else
 fi
 
 # 5. 启动容器
-if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将依序恢复以下服务:"
-    for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
-            log "[DRY-RUN]   - $svc (网关服务)"
-        fi
-    done
-    for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
-            log "[DRY-RUN]   - $svc"
-        fi
-    done
-else
-    start_all_services
-fi
+start_all_services
 
 log ">>> 所有任务完成。"
 

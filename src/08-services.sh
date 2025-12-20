@@ -83,14 +83,24 @@ start_service_with_status() {
         return 0
     fi
 
+    # dry run 模式下的模拟启动
+    if [ "$DRY_RUN" = true ]; then
+        if [ -x "$svc_path/compose-up.sh" ]; then
+            log "[DRY-RUN] 将启动 $svc_name (使用 compose-up.sh)"
+        elif [ -f "$svc_path/docker-compose.yml" ]; then
+            log "[DRY-RUN] 将启动 $svc_name (使用 docker compose up)"
+        fi
+        return 0
+    fi
+
     if [ -x "$svc_path/compose-up.sh" ]; then
-        log "Starting $svc_name (使用 compose-up.sh)..."
+        log "启动 $svc_name (使用 compose-up.sh)..."
         if ! (cd "$svc_path" && ./compose-up.sh); then
             log "警告：启动 $svc_name 失败"
             return 1
         fi
     elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Starting $svc_name ..."
+        log "启动 $svc_name ..."
         if ! (cd "$svc_path" && docker compose up -d); then
             log "警告：启动 $svc_name 失败"
             return 1
@@ -126,6 +136,22 @@ start_all_services() {
         log "!!! 以下服务启动失败: ${failed_services[*]}"
         send_notification "⚠️ 服务恢复异常" "以下服务启动失败: ${failed_services[*]}"
     fi
+}
+
+stop_all_services() {
+    log "停止网关服务 (Priority)..."
+    for svc in "${PRIORITY_SERVICES[@]}"; do
+        if [ -d "$BASE_DIR/$svc" ]; then
+            stop_service "$BASE_DIR/$svc"
+        fi
+    done
+
+    log "停止普通服务..."
+    for svc in "${NORMAL_SERVICES[@]}"; do
+        if [ -d "$BASE_DIR/$svc" ]; then
+            stop_service "$BASE_DIR/$svc"
+        fi
+    done
 }
 
 # 清理函数：确保异常退出时也能恢复服务
