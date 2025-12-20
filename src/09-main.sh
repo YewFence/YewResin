@@ -81,14 +81,7 @@ else
     if ! kopia snapshot create "$BASE_DIR"; then
         log "!!! 警告：备份过程中出现错误 !!!"
         backup_success=false
-        if [ "$IGNORE_BACKUP_ERROR" = false ]; then
-            log "备份失败且 IGNORE_BACKUP_ERROR=false，恢复服务后退出..."
-            send_notification "❌ 备份失败" "Kopia 快照创建失败，服务已恢复"
-            start_all_services
-            exit 1
-        else
-            log "IGNORE_BACKUP_ERROR=true，继续恢复服务..."
-        fi
+        send_notification "❌ 备份失败" "Kopia 快照创建失败"
     else
         log ">>> 备份成功！"
     fi

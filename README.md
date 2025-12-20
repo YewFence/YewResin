@@ -129,7 +129,6 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 | `EXPECTED_REMOTE` | `gdrive:backup` | Kopia 远程路径 |
 | `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 |
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
-| `IGNORE_BACKUP_ERROR` | `true` | 备份失败时是否继续 |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
 | `APPRISE_URL` | - | Apprise 服务地址 |
 | `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
