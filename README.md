@@ -37,9 +37,22 @@ sudo apt update && sudo apt install kopia
 kopia repository connect rclone --remote-path="gdrive:backup"
 
 # 下载该脚本
-git clone https://github.com/YewFence/YewResin.git
-cd YewResin
+mkdir ~/yewresin
+cd ~/yewresin
+wget https://github.com/YewFence/YewResin/releases/latest/download/backup.sh
 ```
+> 也可以下载源码后自定义逻辑
+> ```bash
+> git clone https://github.com/YewFence/YewResin.git
+> cd YewResin
+> ```
+> 然后自行更改 `src/` 下的各个模块，可能需要自定义的有 `src/08-services.sh` 内路径内是否含有服务的识别逻辑，启停服务的脚本的名称/具体的命令
+> 
+> 然后，使用 
+> ```bash 
+> make
+> ```
+> 生成最终脚本，它会输出在项目根目录的 `backup.sh`
 
 ### 2. 配置
 
