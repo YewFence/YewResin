@@ -508,6 +508,8 @@ stop_service() {
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
         elif [ -f "$svc_path/docker-compose.yml" ]; then
             log "[DRY-RUN] 将停止 $svc_name (使用 docker compose down)"
+        else 
+            log "[DRY-RUN] 警告：停止 $svc_name 失败，无法识别停止方法"
         fi
         return 0
     fi
@@ -518,6 +520,8 @@ stop_service() {
     elif [ -f "$svc_path/docker-compose.yml" ]; then
         log "Stopping $svc_name ..."
         (cd "$svc_path" && docker compose down) || log "警告：停止 $svc_name 失败"
+    else 
+        log "警告：停止 $svc_name 失败，无法识别停止方法"
     fi
 }
 
@@ -533,18 +537,32 @@ start_service_with_status() {
         return 0
     fi
 
+    # dry run 模式下的模拟启动
+    if [ "$DRY_RUN" = true ]; then
+        if [ -x "$svc_path/compose-up.sh" ]; then
+            log "[DRY-RUN] 将启动 $svc_name (使用 compose-up.sh)"
+        elif [ -f "$svc_path/docker-compose.yml" ]; then
+            log "[DRY-RUN] 将启动 $svc_name (使用 docker compose up -d)"
+        else 
+            log "[DRY-RUN] 警告：启动 $svc_name 失败，无法识别启动方法"
+        fi
+        return 0
+    fi
+
     if [ -x "$svc_path/compose-up.sh" ]; then
-        log "Starting $svc_name (使用 compose-up.sh)..."
+        log "启动 $svc_name (使用 compose-up.sh)..."
         if ! (cd "$svc_path" && ./compose-up.sh); then
             log "警告：启动 $svc_name 失败"
             return 1
         fi
     elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Starting $svc_name ..."
+        log "启动 $svc_name ..."
         if ! (cd "$svc_path" && docker compose up -d); then
             log "警告：启动 $svc_name 失败"
             return 1
         fi
+    else 
+        log "警告：启动 $svc_name 失败，无法识别启动方法"
     fi
     return 0
 }
@@ -553,7 +571,7 @@ start_service_with_status() {
 start_all_services() {
     local failed_services=()
 
-    log "恢复网关服务 (Priority)..."
+    log "恢复网关服务 (优先执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
             if ! start_service_with_status "$BASE_DIR/$svc"; then
@@ -576,6 +594,22 @@ start_all_services() {
         log "!!! 以下服务启动失败: ${failed_services[*]}"
         send_notification "⚠️ 服务恢复异常" "以下服务启动失败: ${failed_services[*]}"
     fi
+}
+
+stop_all_services() {
+    log "停止普通服务..."
+    for svc in "${NORMAL_SERVICES[@]}"; do
+        if [ -d "$BASE_DIR/$svc" ]; then
+            stop_service "$BASE_DIR/$svc"
+        fi
+    done
+
+    log "停止网关服务 (最后执行)..."
+    for svc in "${PRIORITY_SERVICES[@]}"; do
+        if [ -d "$BASE_DIR/$svc" ]; then
+            stop_service "$BASE_DIR/$svc"
+        fi
+    done
 }
 
 # 清理函数：确保异常退出时也能恢复服务
@@ -664,21 +698,7 @@ log ">>> 开始执行深夜维护..."
 send_notification "🔄 备份开始" "开始执行服务器备份任务"
 
 # 3. 停止容器
-# 3.1 先停止普通服务
-log "停止普通服务..."
-for svc in "${NORMAL_SERVICES[@]}"; do
-    if [ -d "$BASE_DIR/$svc" ]; then
-        stop_service "$BASE_DIR/$svc"
-    fi
-done
-
-# 3.2 最后停止网关服务
-log "停止网关服务 (Priority)..."
-for svc in "${PRIORITY_SERVICES[@]}"; do
-    if [ -d "$BASE_DIR/$svc" ]; then
-        stop_service "$BASE_DIR/$svc"
-    fi
-done
+stop_all_services
 
 # 4. 执行 Kopia 备份
 log ">>> 服务已全部停止，准备执行 Kopia 快照..."
@@ -706,21 +726,7 @@ else
 fi
 
 # 5. 启动容器
-if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将依序恢复以下服务:"
-    for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
-            log "[DRY-RUN]   - $svc (网关服务)"
-        fi
-    done
-    for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -n "${RUNNING_SERVICES[$svc]}" ]; then
-            log "[DRY-RUN]   - $svc"
-        fi
-    done
-else
-    start_all_services
-fi
+start_all_services
 
 log ">>> 所有任务完成。"
 
