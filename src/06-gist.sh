@@ -115,16 +115,10 @@ upload_to_gist() {
 ========================================
 YewResin Docker 备份日志
 ========================================
-日期: $SCRIPT_START_DATETIME
-状态: $([ "$backup_success" = true ] && echo "✅ 成功" || echo "⚠️ 有警告")
+执行状态: $([ "$backup_success" = true ] && echo "✅ 成功" || echo "⚠️ 有警告")
+开始时间: $SCRIPT_START_DATETIME
 耗时: $([ $HOURS -gt 0 ] && echo "$HOURS 小时 ")$([ $MINUTES -gt 0 ] && echo "$MINUTES 分 ")$SECS 秒
-========================================
-
-基础配置信息:
-  BASE_DIR: $BASE_DIR
-  EXPECTED_REMOTE: $EXPECTED_REMOTE
-  PRIORITY_SERVICES: ${PRIORITY_SERVICES[*]}
-
+结束时间：$SCRIPT_END_DATETIME
 ========================================
 详细日志:
 ========================================

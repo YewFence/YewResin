@@ -130,25 +130,20 @@ log ">>> 所有任务完成。"
 # ================= 显示耗时统计 =================
 SCRIPT_END_TIME=$(date +%s)
 SCRIPT_END_DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
-TOTAL_SECONDS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
+TOTAL_SECS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
 
 # 转换为时分秒格式
-HOURS=$((TOTAL_SECONDS / 3600))
-MINUTES=$(((TOTAL_SECONDS % 3600) / 60))
-SECONDS=$((TOTAL_SECONDS % 60))
-
-echo ""
-echo "=========================================="
-echo "耗时统计:"
-echo "=========================================="
-printf "  %-20s %s\n" "开始时间:" "$SCRIPT_START_DATETIME"
-printf "  %-20s %s\n" "结束时间:" "$SCRIPT_END_DATETIME"
+HOURS=$((TOTAL_SECS / 3600))
+MINUTES=$(((TOTAL_SECS % 3600) / 60))
+SECS=$((TOTAL_SECS % 60))
+log "  %-20s %s\n" "开始时间:" "$SCRIPT_START_DATETIME"
+log "  %-20s %s\n" "结束时间:" "$SCRIPT_END_DATETIME"
 if [ $HOURS -gt 0 ]; then
-    printf "  %-20s %d 小时 %d 分 %d 秒\n" "总耗时:" "$HOURS" "$MINUTES" "$SECONDS"
+    log "  %-20s %d 小时 %d 分 %d 秒\n" "总耗时:" "$HOURS" "$MINUTES" "$SECS"
 elif [ $MINUTES -gt 0 ]; then
-    printf "  %-20s %d 分 %d 秒\n" "总耗时:" "$MINUTES" "$SECONDS"
+    log "  %-20s %d 分 %d 秒\n" "总耗时:" "$MINUTES" "$SECS"
 else
-    printf "  %-20s %d 秒\n" "总耗时:" "$SECONDS"
+    log "  %-20s %d 秒\n" "总耗时:" "$SECS"
 fi
 echo "=========================================="
 

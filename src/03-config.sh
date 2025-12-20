@@ -69,8 +69,8 @@ print_config() {
 
     # 脱敏处理通知 URL
     if [ -n "$APPRISE_URL" ]; then
-        if [ ${#APPRISE_URL} -gt 35 ]; then
-            local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
+        if [ ${#APPRISE_URL} -gt 20 ]; then
+            local masked_url="${APPRISE_URL:0:10}...${APPRISE_URL: -5}"
         else
             local masked_url="****(已配置)"
         fi
@@ -81,7 +81,7 @@ print_config() {
 
     if [ -n "$APPRISE_NOTIFY_URL" ]; then
         if [ ${#APPRISE_NOTIFY_URL} -gt 23 ]; then
-            local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
+            local masked_notify="${APPRISE_NOTIFY_URL:0:10}...${APPRISE_NOTIFY_URL: -5}"
         else
             local masked_notify="****(已配置)"
         fi
