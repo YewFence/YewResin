@@ -38,6 +38,6 @@ if [ "$SHOW_HELP" = true ]; then
     echo "必要环境变量:"
     echo "  BASE_DIR              Docker Compose 项目目录"
     echo "  EXPECTED_REMOTE       Kopia 远程路径"
-    echo "更多说明请参考项目 README 文档 https://github.com/yourusername/yourrepository"
+    echo "更多说明请参考项目 README 文档 https://github.com/YewFence/YewResin/"
     exit 0
 fi
