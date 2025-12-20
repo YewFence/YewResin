@@ -17,7 +17,6 @@ jobs:
       - name: Run make
         run: |
           make
-          chmod +x backup.sh
 
       - name: Update Latest Release
         uses: "marvinpinto/action-automatic-releases@latest"
@@ -27,5 +26,5 @@ jobs:
           prerelease: true
           title: "Development Build (Latest)"
           files: |
-            backup.sh
+            yewresin.sh
             .env.example

@@ -3,20 +3,18 @@
 # 格式化通知响应输出
 format_notification_response() {
     local response="$1"
-    local timestamp
-    timestamp=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 
     if echo "$response" | grep -q '"status"'; then
         local status msg
         status=$(echo "$response" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*\([0-9]*\).*/\1/p')
         msg=$(echo "$response" | sed -n 's/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         if [ "$status" = "200" ]; then
-            printf "[%s] 通知发送成功: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+            log "通知发送成功: 状态=$status 信息=$msg"
         else
-            printf "[%s] 通知发送失败: 状态=%-3s 信息=%s\n" "$timestamp" "$status" "$msg"
+            log "通知发送失败: 状态=$status 信息=$msg"
         fi
     elif [ -n "$response" ]; then
-        echo "[$timestamp] 警告：通知发送失败 - $response"
+        log "[警告] 未知错误:通知发送失败 - $response"
     fi
 }
 
@@ -27,6 +25,7 @@ send_notification() {
 
     # 如果没配置 Apprise，跳过通知
     if [ -z "$APPRISE_URL" ] || [ -z "$APPRISE_NOTIFY_URL" ]; then
+        log "跳过通知发送：未配置 APPRISE_URL 或 APPRISE_NOTIFY_URL"
         return 0
     fi
 

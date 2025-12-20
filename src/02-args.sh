@@ -27,6 +27,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [ "$SHOW_HELP" = true ]; then
+    echo "欢迎使用 YewResin Docker 备份脚本 By YewFence"
     echo "用法: $0 [选项]"
     echo ""
     echo "选项:"
@@ -34,11 +35,9 @@ if [ "$SHOW_HELP" = true ]; then
     echo "  -y, --yes        跳过交互式确认，自动确认执行"
     echo "  --help, -h       显示此帮助信息"
     echo ""
-    echo "环境变量:"
-    echo "  BASE_DIR              Docker Compose 项目目录 (默认: /opt/docker_file)"
-    echo "  IGNORE_BACKUP_ERROR   备份失败时是否继续 (默认: true)"
-    echo "  EXPECTED_REMOTE       Kopia 远程路径 (默认: gdrive:backup)"
-    echo "  KOPIA_PASSWORD        Kopia 仓库密码 (必须通过环境变量传入)"
-    echo "  PRIORITY_SERVICES_LIST 网关服务列表，空格分隔 (默认: caddy nginx gateway)"
+    echo "必要环境变量:"
+    echo "  BASE_DIR              Docker Compose 项目目录"
+    echo "  EXPECTED_REMOTE       Kopia 远程路径"
+    echo "更多说明请参考项目 README 文档 https://github.com/YewFence/YewResin/"
     exit 0
 fi

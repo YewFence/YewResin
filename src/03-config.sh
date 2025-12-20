@@ -12,9 +12,17 @@ fi
 # 所有配置均可通过环境变量或 .env 文件覆盖
 
 # 你的 Docker Compose 项目总目录
-BASE_DIR="${BASE_DIR:-/opt/docker_file}"
-# 即使 Kopia 命令失败也继续执行后续启动步骤吗？(true/false)
-IGNORE_BACKUP_ERROR="${IGNORE_BACKUP_ERROR:-true}"
+BASE_DIR="${BASE_DIR:-}"
+if [ -z "$BASE_DIR" ]; then
+    log "[错误] 必须设置 BASE_DIR 环境变量，指定 Docker Compose 项目总目录。脚本将退出。" >&2
+    exit 1
+fi
+# Kopia 远程路径预期值
+EXPECTED_REMOTE="${EXPECTED_REMOTE:-}"
+if [ -z "$EXPECTED_REMOTE" ]; then
+    log "[错误] 必须设置 EXPECTED_REMOTE 环境变量，指定 Kopia 远程仓库路径。脚本将退出。" >&2
+    exit 1
+fi
 # 定义你的网关服务文件夹名称 (最后关，最先开)
 # 通过 PRIORITY_SERVICES_LIST 环境变量设置，用空格分隔
 if [ -n "$PRIORITY_SERVICES_LIST" ]; then
@@ -24,8 +32,6 @@ else
 fi
 # 锁文件路径
 LOCK_FILE="${LOCK_FILE:-/tmp/backup_maintenance.lock}"
-# Kopia 远程路径预期值
-EXPECTED_REMOTE="${EXPECTED_REMOTE:-gdrive:backup}"
 # GitHub Gist 配置（可选）
 GIST_TOKEN="${GIST_TOKEN:-}"
 GIST_ID="${GIST_ID:-}"
@@ -44,8 +50,7 @@ print_config() {
     # 使用 printf 对齐输出，%-38s 表示左对齐占 38 字符宽度
     local fmt="  %-38s %s\n"
     printf "$fmt" "BASE_DIR(工作目录):" "$BASE_DIR"
-    printf "$fmt" "IGNORE_BACKUP_ERROR(忽略备份错误?):" "$IGNORE_BACKUP_ERROR"
-    printf "$fmt" "EXPECTED_REMOTE(预期远程仓库):" "$EXPECTED_REMOTE"
+    printf "$fmt" "EXPECTED_REMOTE(Kopia 预期远程仓库路径):" "$EXPECTED_REMOTE"
     printf "$fmt" "PRIORITY_SERVICES(优先服务):" "${PRIORITY_SERVICES[*]}"
     printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
     printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
