@@ -1,6 +1,6 @@
 #!/bin/bash
 # shellcheck source-path=SCRIPTDIR
-# This module is sourced by backup.sh and provides service management functions.
+# This module is sourced by yewresin.sh and provides service management functions.
 # Required external variables: DRY_RUN, BASE_DIR, LOCK_FILE, PRIORITY_SERVICES, NORMAL_SERVICES
 # Required external functions: log(), send_notification()
 # ================= 服务管理 =================

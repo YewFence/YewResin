@@ -1,8 +1,8 @@
 # YewResin Backup Script Builder
-# 将 src/ 目录下的模块文件合并为 backup.sh
+# 将 src/ 目录下的模块文件合并为 yewresin.sh
 
 SOURCES := $(sort $(wildcard src/*.sh))
-TARGET := backup.sh
+TARGET := yewresin.sh
 
 .PHONY: build clean help
 
@@ -22,8 +22,8 @@ clean:
 
 help:
 	@echo "Usage:"
-	@echo "  make build  - Build backup.sh from src/ modules"
-	@echo "  make clean  - Remove generated backup.sh"
+	@echo "  make build  - Build yewresin.sh from src/ modules"
+	@echo "  make clean  - Remove generated yewresin.sh"
 	@echo "  make help   - Show this help message"
 	@echo ""
 	@echo "Modules:"

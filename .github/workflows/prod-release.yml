@@ -17,12 +17,12 @@ jobs:
       - name: Run make
         run: |
           make
-          chmod +x backup.sh
+          chmod +x yewresin.sh
 
       - name: Create Tagged Release
         uses: softprops/action-gh-release@v2
         with:
-          files: backup.sh, .env.example
+          files: yewresin.sh, .env.example
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

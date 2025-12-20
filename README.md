@@ -39,7 +39,7 @@ kopia repository connect rclone --remote-path="gdrive:backup"
 # 下载该脚本
 mkdir ~/yewresin
 cd ~/yewresin
-wget https://github.com/YewFence/YewResin/releases/download/latest/backup.sh
+wget https://github.com/YewFence/YewResin/releases/download/latest/yewresin.sh
 ```
 
 该标签内的脚本会在main分支推送后自动更新，也可以自行下载指定版本的脚本
@@ -55,11 +55,11 @@ wget https://github.com/YewFence/YewResin/releases/download/latest/backup.sh
 > ```bash 
 > make
 > ```
-> 生成最终脚本，它会输出在项目根目录的 `backup.sh`
+> 生成最终脚本，它会输出在项目根目录的 `yewresin.sh`
 
 ### 2. 配置
 
-创建 `.env` 文件（与 `backup.sh` 同目录）：
+创建 `.env` 文件（与 `yewresin.sh` 同目录）：
 
 ```bash
 # 在脚本所在目录下载示例文件
@@ -98,19 +98,19 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 
 ```bash
 # 模拟运行（推荐先测试）
-./backup.sh --dry-run
+./yewresin.sh --dry-run
 
 # 执行备份（需确认）
-./backup.sh
+./yewresin.sh
 
 # 跳过确认直接执行（适用于 cron）
-./backup.sh -y
+./yewresin.sh -y
 ```
 
 ### 4. 定时任务
 > 按需配置，此处我们以每天凌晨三点运行为例
 ```bash
-(crontab -l 2>/dev/null; echo '0 3 * * * /path/to/backup.sh -y >> /var/log/docker-backup.log 2>&1') | crontab -
+(crontab -l 2>/dev/null; echo '0 3 * * * /path/to/yewresin.sh -y >> /var/log/docker-backup.log 2>&1') | crontab -
 ```
 
 ## 命令行参数
@@ -138,7 +138,7 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 | `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 |
 | `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）|
 | `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）|
-| `CONFIG_FILE` | `./backup.sh` 同目录的 `.env` | 配置文件路径 |
+| `CONFIG_FILE` | `./yewresin.sh` 同目录的 `.env` | 配置文件路径 |
 
 ## 关键要求
 
@@ -166,13 +166,13 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 
 ## 开发说明
 
-脚本采用模块化结构，源代码位于 `src/` 目录，通过 Makefile 合并生成最终的 `backup.sh`。
+脚本采用模块化结构，源代码位于 `src/` 目录，通过 Makefile 合并生成最终的 `yewresin.sh`。
 
 ### 源码结构
 
 ```
 YewResin/
-├── backup.sh              # 生成的脚本（由 make build 生成）
+├── yewresin.sh              # 生成的脚本（由 make build 生成）
 ├── Makefile               # 构建工具
 └── src/                   # 模块源文件
     ├── 00-header.sh       # shebang 和初始化
@@ -190,10 +190,10 @@ YewResin/
 ### 构建命令
 
 ```bash
-# 合并模块生成 backup.sh
+# 合并模块生成 yewresin.sh
 make build
 
-# 删除生成的 backup.sh
+# 删除生成的 yewresin.sh
 make clean
 
 # 查看帮助
@@ -203,8 +203,8 @@ make help
 ### 开发流程
 
 1. 修改 `src/` 目录下的模块文件
-2. 运行 `make build` 重新生成 `backup.sh`
-3. 提交 `src/`、`Makefile` 和 `backup.sh`
+2. 运行 `make build` 重新生成 `yewresin.sh`
+3. 提交 `src/`、`Makefile` 和 `yewresin.sh`
 
 ## 工作流程
 
@@ -330,19 +330,19 @@ brew install jq
 crontab -e
 
 # 每天凌晨 3 点执行备份
-0 3 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+0 3 * * * /path/to/yewresin.sh -y >> /var/log/backup.log 2>&1
 
 # 每周日凌晨 2 点执行备份
-0 2 * * 0 /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+0 2 * * 0 /path/to/yewresin.sh -y >> /var/log/backup.log 2>&1
 
 # 每 6 小时执行一次（0点、6点、12点、18点）
-0 */6 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+0 */6 * * * /path/to/yewresin.sh -y >> /var/log/backup.log 2>&1
 
 # 每天凌晨 3 点和 15 点执行（一天两次）
-0 3,15 * * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+0 3,15 * * * /path/to/yewresin.sh -y >> /var/log/backup.log 2>&1
 
 # 每月 1 日和 15 日凌晨 4 点执行
-0 4 1,15 * * /path/to/backup.sh -y >> /var/log/backup.log 2>&1
+0 4 1,15 * * /path/to/yewresin.sh -y >> /var/log/backup.log 2>&1
 ```
 
 ### 使用 Systemd Timer
@@ -359,7 +359,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/path/to/backup.sh -y
+ExecStart=/path/to/yewresin.sh -y
 StandardOutput=journal
 StandardError=journal
 ```
