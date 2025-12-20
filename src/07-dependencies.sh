@@ -35,7 +35,7 @@ check_dependencies() {
     fi
 
     # 检查 Kopia 仓库连接状态并尝试连接
-    echo "[检查] Kopia 仓库连接状态..."
+    echo "[检查] Kopia 仓库 $EXPECTED_REMOTE 连接状态..."
     local repo_status
     repo_status=$(kopia repository status 2>&1)
 
@@ -43,15 +43,24 @@ check_dependencies() {
         echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"
     else
         echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
-        echo "[尝试] 重新连接到 $EXPECTED_REMOTE ..."
-        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
-            echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
-            echo "       请检查 rclone 配置和网络连接"
-            echo "       文档: https://kopia.io/docs/installation/"
+        if [ -n "$KOPIA_PASSWORD" ]; then
+            echo "[尝试] 使用已配置的 KOPIA_PASSWORD 尝试重新连接仓库 $KOPIA_PASSWORD ..."
+            if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
+                echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
+                echo "       请检查 rclone 配置和网络连接"
+                echo "       文档: https://kopia.io/docs/installation/"
+                echo ""
+                echo "[失败] 依赖检查未通过，脚本退出"
+                send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
+                exit 1
+        else
+            echo "[提示] 未检测到 KOPIA_PASSWORD，无法自动连接仓库"
+            echo "       请设置 KOPIA_PASSWORD 环境变量后手动重试"
             echo ""
             echo "[失败] 依赖检查未通过，脚本退出"
-            send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
+            send_dep_notification "❌ 备份失败" "Kopia 仓库未连接且未配置 KOPIA_PASSWORD，无法自动重试"
             exit 1
+        fi
         fi
         echo "[✓] 成功连接到 $EXPECTED_REMOTE"
     fi
