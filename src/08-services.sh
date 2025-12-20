@@ -141,4 +141,7 @@ cleanup() {
     if [ -f "$LOG_OUTPUT_FILE" ]; then
         rm -f "$LOG_OUTPUT_FILE"
     fi
+        
+    # 上传日志到 Gist
+    upload_to_gist
 }

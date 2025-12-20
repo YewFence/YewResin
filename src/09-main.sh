@@ -156,6 +156,3 @@ elif [ "$backup_success" = true ]; then
 else
     send_notification "⚠️ 备份完成（有警告）" "快照创建失败，但服务已恢复运行"
 fi
-
-# 上传日志到 Gist
-upload_to_gist
