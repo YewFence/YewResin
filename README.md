@@ -67,31 +67,12 @@ wget https://github.com/YewFence/YewResin/releases/download/latest/default.env.e
 cp default.env.example .env
 ```
 
+必要环境变量配置：
 ```bash
 # Docker Compose 项目总目录
 BASE_DIR=/opt/docker_file
-
-# Kopia 远程路径（需与 rclone 配置匹配）
+# Kopia 远程路径
 EXPECTED_REMOTE=gdrive:backup
-
-# 网关服务列表（最后停止，最先启动），空格分隔
-PRIORITY_SERVICES_LIST="caddy nginx gateway"
-
-# 备份失败时是否继续启动服务
-IGNORE_BACKUP_ERROR=true
-
-# Apprise 通知配置（可选）
-# 如果需要 Vercel 部署的 Apprise，可参考：https://github.com/YewFence/apprise
-APPRISE_URL=http://your-apprise-server:8000/notify
-APPRISE_NOTIFY_URL=tgram://bot_token/chat_id
-
-# GitHub Gist 日志上传配置（可选）
-# 用于将每日备份日志推送到 GitHub Gist 持久化存储
-GIST_TOKEN=your_github_personal_access_token
-GIST_ID=your_gist_id
-GIST_LOG_PREFIX=yewresin-backup  # 可选，日志文件名前缀，默认为 yewresin-backup
-GIST_MAX_LOGS=30                 # 可选，最大保留日志数量，默认 30
-GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为标题
 ```
 
 ### 3. 运行
@@ -125,8 +106,8 @@ GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为
 
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
-| `BASE_DIR` | `/opt/docker_file` | Docker Compose 项目目录 |
-| `EXPECTED_REMOTE` | `gdrive:backup` | Kopia 远程路径 |
+| `BASE_DIR` | - | Docker Compose 项目目录 |
+| `EXPECTED_REMOTE` | - | Kopia 远程路径 |
 | `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 |
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
