@@ -1,5 +1,4 @@
-
-# ================= 依赖检查 =================
+# check_dependencies validates that rclone and kopia are installed and configured, ensures rclone has configured remotes, verifies the Kopia repository is connected to EXPECTED_REMOTE (attempting to reconnect using KOPIA_PASSWORD if not), and on unrecoverable failures sends a dependency notification via send_dep_notification and exits with status 1.
 check_dependencies() {
     local has_error=false
     local error_msg=""

@@ -1,7 +1,6 @@
-
 # ================= GitHub Gist 上传 =================
 
-# 清理旧的 Gist 日志文件
+# cleanup_old_gist_logs removes older files from the configured GitHub Gist so that at most GIST_MAX_LOGS files remain, optionally preserving the first file when GIST_KEEP_FIRST_FILE is true.
 cleanup_old_gist_logs() {
     # 如果 GIST_MAX_LOGS 为 0 或负数，跳过清理
     if [ "$GIST_MAX_LOGS" -le 0 ] 2>/dev/null; then
@@ -91,7 +90,7 @@ cleanup_old_gist_logs() {
     fi
 }
 
-# 上传日志到 GitHub Gist
+# upload_to_gist uploads the current run log to a GitHub Gist (requires GIST_TOKEN, GIST_ID, and jq), creates a timestamped filename for the log, uploads the log content, and invokes cleanup_old_gist_logs on success.
 upload_to_gist() {
     # 如果没配置 Gist，跳过上传
     if [ -z "$GIST_TOKEN" ] || [ -z "$GIST_ID" ]; then

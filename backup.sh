@@ -13,6 +13,7 @@ LOG_OUTPUT_FILE=$(mktemp)
 exec > >(tee -a "$LOG_OUTPUT_FILE")
 exec 2>&1
 
+# log writes a message prefixed with an ISO-style UTC timestamp (YYYY-MM-DD HH:MM:SS UTC) to stdout.
 log() {
     echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
 }
@@ -97,7 +98,7 @@ GIST_MAX_LOGS="${GIST_MAX_LOGS:-30}"
 GIST_KEEP_FIRST_FILE="${GIST_KEEP_FIRST_FILE:-false}"
 # ==========================================
 
-# ================= 打印配置信息 =================
+# print_config prints the current runtime configuration to stdout, showing key settings and masking sensitive values (e.g., KOPIA_PASSWORD) and truncating notification URLs for safe display.
 print_config() {
     echo ""
     echo "=========================================="
@@ -139,7 +140,7 @@ print_config() {
 }
 
 # ================= 工具函数 =================
-# dry-run 模式下的模拟执行函数
+# dry_run_exec prints the command that would be executed when DRY_RUN is true and returns success; otherwise it invokes the given command.
 dry_run_exec() {
     if [ "$DRY_RUN" = true ]; then
         echo "[DRY-RUN] 将执行: $*"
@@ -150,7 +151,8 @@ dry_run_exec() {
 }
 
 # ================= 通知函数 =================
-# 格式化通知响应输出
+# format_notification_response formats and prints a notification API response with a UTC timestamp.
+# format_notification_response accepts one argument: the raw response body returned by the notification API; if the body contains JSON fields "status" and "message" it prints a timestamped success or failure line including the numeric status and message, otherwise it prints a timestamped warning with the raw response.
 format_notification_response() {
     local response="$1"
     local timestamp
@@ -170,7 +172,7 @@ format_notification_response() {
     fi
 }
 
-# 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
+# send_dep_notification sends a dependency-check notification via the configured Apprise endpoint when APPRISE_URL and APPRISE_NOTIFY_URL are set.
 send_dep_notification() {
     local title="$1"
     local body="$2"
@@ -194,7 +196,10 @@ send_dep_notification() {
     format_notification_response "$response"
 }
 
-# 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
+# send_notification sends a notification via Apprise when APPRISE_URL and APPRISE_NOTIFY_URL are configured.
+# It POSTs a JSON payload with the provided title and body to APPRISE_URL for delivery to APPRISE_NOTIFY_URL.
+# If APPRISE_URL or APPRISE_NOTIFY_URL is not set, the function does nothing.
+# title is the notification title; body is the notification message.
 send_notification() {
     local title="$1"
     local body="$2"
@@ -221,7 +226,7 @@ send_notification() {
 
 # ================= GitHub Gist 上传 =================
 
-# 清理旧的 Gist 日志文件
+# cleanup_old_gist_logs 清理 GitHub Gist 中超出保留数量的旧日志文件，删除最旧的文件以保持不超过 GIST_MAX_LOGS（可选保留第一个文件）。
 cleanup_old_gist_logs() {
     # 如果 GIST_MAX_LOGS 为 0 或负数，跳过清理
     if [ "$GIST_MAX_LOGS" -le 0 ] 2>/dev/null; then
@@ -311,7 +316,7 @@ cleanup_old_gist_logs() {
     fi
 }
 
-# 上传日志到 GitHub Gist
+# upload_to_gist uploads the accumulated run log to the configured GitHub Gist (GIST_ID) using GIST_TOKEN, creating a timestamped file prefixed by GIST_LOG_PREFIX and invoking cleanup_old_gist_logs on success; if GIST_TOKEN or GIST_ID are unset it does nothing.
 upload_to_gist() {
     # 如果没配置 Gist，跳过上传
     if [ -z "$GIST_TOKEN" ] || [ -z "$GIST_ID" ]; then
@@ -406,7 +411,7 @@ EOF
     fi
 }
 
-# ================= 依赖检查 =================
+# check_dependencies verifies rclone and kopia are installed and configured, ensures rclone has at least one remote, checks Kopia repository is connected to EXPECTED_REMOTE (attempting to connect if not), and sends notifications and exits the script on fatal dependency failures.
 check_dependencies() {
     local has_error=false
     local error_msg=""
@@ -612,7 +617,7 @@ start_all_services() {
     fi
 }
 
-# 清理函数：确保异常退出时也能恢复服务
+# cleanup removes the lock file and, if the script exited with a non-zero status, sends a failure notification and attempts to restart all services.
 cleanup() {
     local exit_code=$?
     if [ "$exit_code" -ne 0 ]; then

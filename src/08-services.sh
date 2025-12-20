@@ -1,9 +1,8 @@
-
 # ================= 服务管理 =================
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
 
-# 检查服务是否正在运行
+# is_service_running checks whether the service at the given path defines a compose setup and has any running containers (returns success if running, failure otherwise).
 is_service_running() {
     local svc_path="$1"
     local svc_name
@@ -34,7 +33,7 @@ is_service_running() {
     return 1
 }
 
-# 停止单个服务的函数
+# stop_service stops a single service under the given path if it is running, records the service in RUNNING_SERVICES, supports DRY_RUN, and uses compose-down.sh or `docker compose down` to stop it.
 stop_service() {
     local svc_path="$1"
     local svc_name
@@ -67,7 +66,7 @@ stop_service() {
     fi
 }
 
-# 启动单个服务的函数
+# start_service starts a single service that was originally running by invoking an executable `compose-up.sh` in the service directory or falling back to `docker compose up -d` when a `docker-compose.yml` is present.
 start_service() {
     local svc_path="$1"
     local svc_name
@@ -88,7 +87,7 @@ start_service() {
     fi
 }
 
-# 启动单个服务并返回状态的函数
+# start_service_with_status starts a service previously recorded as running in RUNNING_SERVICES at the given path and exits with 0 on success or 1 if startup fails.
 start_service_with_status() {
     local svc_path="$1"
     local svc_name
@@ -116,7 +115,8 @@ start_service_with_status() {
     return 0
 }
 
-# 启动所有服务的函数
+# start_all_services Restores services listed in PRIORITY_SERVICES and NORMAL_SERVICES, starting priority services first.
+# It attempts to start each service directory under BASE_DIR, collects services that fail to start, and sends a notification listing any failures.
 start_all_services() {
     local failed_services=()
 
@@ -145,7 +145,7 @@ start_all_services() {
     fi
 }
 
-# 清理函数：确保异常退出时也能恢复服务
+# cleanup ensures services are restored on abnormal exit: if the script exits with a non-zero status it sends a notification, attempts to start all services, and always removes the lock file.
 cleanup() {
     local exit_code=$?
     if [ "$exit_code" -ne 0 ]; then

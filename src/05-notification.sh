@@ -1,6 +1,5 @@
-
 # ================= 通知函数 =================
-# 格式化通知响应输出
+# format_notification_response formats and prints a UTC-timestamped summary of an Apprise notification response, extracting `status` and `message` when present and indicating success (status 200), failure (other statuses), or a warning for non-empty non-JSON responses.
 format_notification_response() {
     local response="$1"
     local timestamp
@@ -20,7 +19,7 @@ format_notification_response() {
     fi
 }
 
-# 依赖检查专用的通知函数（在主 send_notification 定义之前使用）
+# send_dep_notification sends a dependency-only notification via Apprise when APPRISE_URL and APPRISE_NOTIFY_URL are configured; otherwise it does nothing.
 send_dep_notification() {
     local title="$1"
     local body="$2"
@@ -44,7 +43,7 @@ send_dep_notification() {
     format_notification_response "$response"
 }
 
-# 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
+# send_notification sends a notification via Apprise using APPRISE_URL and APPRISE_NOTIFY_URL when configured; accepts a title and a body as parameters.
 send_notification() {
     local title="$1"
     local body="$2"

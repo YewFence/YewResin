@@ -1,4 +1,3 @@
-
 # ================= 配置加载 =================
 # 加载环境变量配置文件（可选）
 # 支持通过 CONFIG_FILE 环境变量指定配置文件路径
@@ -35,7 +34,7 @@ GIST_MAX_LOGS="${GIST_MAX_LOGS:-30}"
 GIST_KEEP_FIRST_FILE="${GIST_KEEP_FIRST_FILE:-false}"
 # ==========================================
 
-# ================= 打印配置信息 =================
+# print_config prints a formatted summary of current configuration values, masking the KOPIA_PASSWORD and partially hiding notification URLs.
 print_config() {
     echo ""
     echo "=========================================="
