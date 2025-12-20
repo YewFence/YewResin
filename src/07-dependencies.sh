@@ -25,6 +25,12 @@ check_dependencies() {
         error_msg+="kopia 未安装; "
         has_error=true
     fi
+    if [ -z "$EXPECTED_REMOTE" ]; then
+        echo "[错误] Kopia 备份用远程仓库路径未配置"
+        echo "       请在配置文件中设置 EXPECTED_REMOTE"
+        send_notification "❌ 备份失败" "Kopia 备份用远程仓库路径未配置"
+        exit 1
+    fi
 
     # 如果基础依赖检查失败，直接退出
     if [ "$has_error" = true ]; then
