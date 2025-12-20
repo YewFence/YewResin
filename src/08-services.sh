@@ -1,4 +1,8 @@
-
+#!/bin/bash
+# shellcheck source-path=SCRIPTDIR
+# This module is sourced by backup.sh and provides service management functions.
+# Required external variables: DRY_RUN, BASE_DIR, LOCK_FILE, PRIORITY_SERVICES, NORMAL_SERVICES
+# Required external functions: log(), send_notification()
 # ================= 服务管理 =================
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
@@ -64,27 +68,6 @@ stop_service() {
     elif [ -f "$svc_path/docker-compose.yml" ]; then
         log "Stopping $svc_name ..."
         (cd "$svc_path" && docker compose down) || log "警告：停止 $svc_name 失败"
-    fi
-}
-
-# 启动单个服务的函数
-start_service() {
-    local svc_path="$1"
-    local svc_name
-    svc_name=$(basename "$svc_path")
-
-    # 检查该服务是否原本在运行
-    if [ -z "${RUNNING_SERVICES[$svc_name]}" ]; then
-        log "跳过启动 $svc_name (原本未运行)"
-        return 0
-    fi
-
-    if [ -x "$svc_path/compose-up.sh" ]; then
-        log "Starting $svc_name (使用 compose-up.sh)..."
-        (cd "$svc_path" && ./compose-up.sh) || log "警告：启动 $svc_name 失败"
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Starting $svc_name ..."
-        (cd "$svc_path" && docker compose up -d) || log "警告：启动 $svc_name 失败"
     fi
 }
 

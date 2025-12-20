@@ -1,4 +1,4 @@
-
+# shellcheck shell=bash
 # ================= 命令行参数解析 =================
 DRY_RUN=false
 SHOW_HELP=false
