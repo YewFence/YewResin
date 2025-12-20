@@ -132,6 +132,48 @@ GIST_LOG_PREFIX=yewresin-backup  # 可选，日志文件名前缀，默认为 ye
 
 脚本会自动识别包含 `docker-compose.yml` 或 `compose*.yaml` 的目录作为服务。
 
+## 开发说明
+
+脚本采用模块化结构，源代码位于 `src/` 目录，通过 Makefile 合并生成最终的 `backup.sh`。
+
+### 源码结构
+
+```
+YewResin/
+├── backup.sh              # 生成的脚本（由 make build 生成）
+├── Makefile               # 构建工具
+└── src/                   # 模块源文件
+    ├── 00-header.sh       # shebang 和初始化
+    ├── 01-logging.sh      # 日志捕获和 log() 函数
+    ├── 02-args.sh         # 命令行参数解析
+    ├── 03-config.sh       # 配置加载和默认值
+    ├── 04-utils.sh        # 通用工具函数
+    ├── 05-notification.sh # 通知相关函数
+    ├── 06-gist.sh         # GitHub Gist 上传
+    ├── 07-dependencies.sh # 依赖检查
+    ├── 08-services.sh     # Docker 服务管理
+    └── 09-main.sh         # 主流程逻辑
+```
+
+### 构建命令
+
+```bash
+# 合并模块生成 backup.sh
+make build
+
+# 删除生成的 backup.sh
+make clean
+
+# 查看帮助
+make help
+```
+
+### 开发流程
+
+1. 修改 `src/` 目录下的模块文件
+2. 运行 `make build` 重新生成 `backup.sh`
+3. 提交 `src/`、`Makefile` 和 `backup.sh`
+
 ## 工作流程
 
 1. 检查依赖（rclone、kopia）

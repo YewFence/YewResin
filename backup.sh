@@ -13,6 +13,10 @@ LOG_OUTPUT_FILE=$(mktemp)
 exec > >(tee -a "$LOG_OUTPUT_FILE")
 exec 2>&1
 
+log() {
+    echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
+}
+
 # ================= 命令行参数解析 =================
 DRY_RUN=false
 SHOW_HELP=false
@@ -57,6 +61,7 @@ if [ "$SHOW_HELP" = true ]; then
     exit 0
 fi
 
+# ================= 配置加载 =================
 # 加载环境变量配置文件（可选）
 # 支持通过 CONFIG_FILE 环境变量指定配置文件路径
 CONFIG_FILE="${CONFIG_FILE:-$(dirname "$0")/.env}"
@@ -89,7 +94,59 @@ GIST_ID="${GIST_ID:-}"
 GIST_LOG_PREFIX="${GIST_LOG_PREFIX:-yewresin-backup}"
 # ==========================================
 
-# ================= 依赖检查 =================
+# ================= 打印配置信息 =================
+print_config() {
+    echo ""
+    echo "=========================================="
+    echo "当前配置信息"
+    echo "=========================================="
+    # 使用 printf 对齐输出，%-38s 表示左对齐占 38 字符宽度
+    local fmt="  %-38s %s\n"
+    printf "$fmt" "BASE_DIR(工作目录):" "$BASE_DIR"
+    printf "$fmt" "IGNORE_BACKUP_ERROR(忽略备份错误?):" "$IGNORE_BACKUP_ERROR"
+    printf "$fmt" "EXPECTED_REMOTE(预期远程仓库):" "$EXPECTED_REMOTE"
+    printf "$fmt" "PRIORITY_SERVICES(优先服务):" "${PRIORITY_SERVICES[*]}"
+    printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
+    printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
+    printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
+
+    # 脱敏处理 KOPIA_PASSWORD
+    if [ -n "$KOPIA_PASSWORD" ]; then
+        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "******(已配置)"
+    else
+        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "(未配置)"
+    fi
+
+    # 脱敏处理通知 URL
+    if [ -n "$APPRISE_URL" ]; then
+        local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
+        printf "$fmt" "APPRISE_URL(通知服务URL):" "$masked_url"
+    else
+        printf "$fmt" "APPRISE_URL(通知服务URL):" "(未配置)"
+    fi
+
+    if [ -n "$APPRISE_NOTIFY_URL" ]; then
+        local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
+        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "$masked_notify"
+    else
+        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "(未配置)"
+    fi
+    echo "=========================================="
+    echo ""
+}
+
+# ================= 工具函数 =================
+# dry-run 模式下的模拟执行函数
+dry_run_exec() {
+    if [ "$DRY_RUN" = true ]; then
+        echo "[DRY-RUN] 将执行: $*"
+        return 0
+    else
+        "$@"
+    fi
+}
+
+# ================= 通知函数 =================
 # 格式化通知响应输出
 format_notification_response() {
     local response="$1"
@@ -134,79 +191,6 @@ send_dep_notification() {
     format_notification_response "$response"
 }
 
-check_dependencies() {
-    local has_error=false
-    local error_msg=""
-
-    # 检查 rclone
-    if ! command -v rclone &>/dev/null; then
-        echo "[错误] rclone 未安装"
-        echo "       请访问 https://rclone.org/downloads/ 下载安装"
-        error_msg+="rclone 未安装; "
-        has_error=true
-    elif ! rclone listremotes 2>/dev/null | grep -q .; then
-        echo "[错误] rclone 已安装但未配置任何远程存储"
-        echo "       请运行 'rclone config' 配置远程存储"
-        echo "       文档: https://rclone.org/downloads/"
-        error_msg+="rclone 未配置远程存储; "
-        has_error=true
-    fi
-
-    # 检查 kopia
-    if ! command -v kopia &>/dev/null; then
-        echo "[错误] kopia 未安装"
-        echo "       请访问 https://kopia.io/docs/installation/ 下载安装"
-        error_msg+="kopia 未安装; "
-        has_error=true
-    fi
-
-    # 如果基础依赖检查失败，直接退出
-    if [ "$has_error" = true ]; then
-        echo ""
-        echo "[失败] 依赖检查未通过，脚本退出"
-        send_dep_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
-        exit 1
-    fi
-
-    # 检查 Kopia 仓库连接状态并尝试连接
-    echo "[检查] Kopia 仓库连接状态..."
-    local repo_status
-    repo_status=$(kopia repository status 2>&1)
-
-    if echo "$repo_status" | grep -q "\"remotePath\": \"$EXPECTED_REMOTE\""; then
-        echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"
-    else
-        echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
-        echo "[尝试] 重新连接到 $EXPECTED_REMOTE ..."
-        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
-            echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
-            echo "       请检查 rclone 配置和网络连接"
-            echo "       文档: https://kopia.io/docs/installation/"
-            echo ""
-            echo "[失败] 依赖检查未通过，脚本退出"
-            send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
-            exit 1
-        fi
-        echo "[✓] 成功连接到 $EXPECTED_REMOTE"
-    fi
-
-    echo "[✓] 依赖检查通过: rclone 和 kopia 均已正确配置"
-}
-
-log() {
-    echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $1"
-}
-
-# dry-run 模式下的模拟执行函数
-dry_run_exec() {
-    if [ "$DRY_RUN" = true ]; then
-        echo "[DRY-RUN] 将执行: $*"
-        return 0
-    else
-        "$@"
-    fi
-}
-
 # 发送通知函数（需要配置 APPRISE_URL 和 APPRISE_NOTIFY_URL）
 send_notification() {
     local title="$1"
@@ -232,6 +216,7 @@ send_notification() {
     format_notification_response "$response"
 }
 
+# ================= GitHub Gist 上传 =================
 # 上传日志到 GitHub Gist
 upload_to_gist() {
     # 如果没配置 Gist，跳过上传
@@ -325,79 +310,67 @@ EOF
     fi
 }
 
-# ================= 打印配置信息 =================
-print_config() {
-    echo ""
-    echo "=========================================="
-    echo "当前配置信息"
-    echo "=========================================="
-    # 使用 printf 对齐输出，%-38s 表示左对齐占 38 字符宽度
-    local fmt="  %-38s %s\n"
-    printf "$fmt" "BASE_DIR(工作目录):" "$BASE_DIR"
-    printf "$fmt" "IGNORE_BACKUP_ERROR(忽略备份错误?):" "$IGNORE_BACKUP_ERROR"
-    printf "$fmt" "EXPECTED_REMOTE(预期远程仓库):" "$EXPECTED_REMOTE"
-    printf "$fmt" "PRIORITY_SERVICES(优先服务):" "${PRIORITY_SERVICES[*]}"
-    printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
-    printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
-    printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
+# ================= 依赖检查 =================
+check_dependencies() {
+    local has_error=false
+    local error_msg=""
 
-    # 脱敏处理 KOPIA_PASSWORD
-    if [ -n "$KOPIA_PASSWORD" ]; then
-        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "******(已配置)"
-    else
-        printf "$fmt" "KOPIA_PASSWORD(仓库密码):" "(未配置)"
+    # 检查 rclone
+    if ! command -v rclone &>/dev/null; then
+        echo "[错误] rclone 未安装"
+        echo "       请访问 https://rclone.org/downloads/ 下载安装"
+        error_msg+="rclone 未安装; "
+        has_error=true
+    elif ! rclone listremotes 2>/dev/null | grep -q .; then
+        echo "[错误] rclone 已安装但未配置任何远程存储"
+        echo "       请运行 'rclone config' 配置远程存储"
+        echo "       文档: https://rclone.org/downloads/"
+        error_msg+="rclone 未配置远程存储; "
+        has_error=true
     fi
 
-    # 脱敏处理通知 URL
-    if [ -n "$APPRISE_URL" ]; then
-        local masked_url="${APPRISE_URL:0:20}...${APPRISE_URL: -10}"
-        printf "$fmt" "APPRISE_URL(通知服务URL):" "$masked_url"
-    else
-        printf "$fmt" "APPRISE_URL(通知服务URL):" "(未配置)"
+    # 检查 kopia
+    if ! command -v kopia &>/dev/null; then
+        echo "[错误] kopia 未安装"
+        echo "       请访问 https://kopia.io/docs/installation/ 下载安装"
+        error_msg+="kopia 未安装; "
+        has_error=true
     fi
 
-    if [ -n "$APPRISE_NOTIFY_URL" ]; then
-        local masked_notify="${APPRISE_NOTIFY_URL:0:15}...${APPRISE_NOTIFY_URL: -8}"
-        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "$masked_notify"
-    else
-        printf "$fmt" "APPRISE_NOTIFY_URL(通知目标URL):" "(未配置)"
+    # 如果基础依赖检查失败，直接退出
+    if [ "$has_error" = true ]; then
+        echo ""
+        echo "[失败] 依赖检查未通过，脚本退出"
+        send_dep_notification "❌ 备份失败" "依赖检查未通过: ${error_msg}请手动配置后重试"
+        exit 1
     fi
-    echo "=========================================="
-    echo ""
+
+    # 检查 Kopia 仓库连接状态并尝试连接
+    echo "[检查] Kopia 仓库连接状态..."
+    local repo_status
+    repo_status=$(kopia repository status 2>&1)
+
+    if echo "$repo_status" | grep -q "\"remotePath\": \"$EXPECTED_REMOTE\""; then
+        echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"
+    else
+        echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
+        echo "[尝试] 重新连接到 $EXPECTED_REMOTE ..."
+        if ! kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
+            echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
+            echo "       请检查 rclone 配置和网络连接"
+            echo "       文档: https://kopia.io/docs/installation/"
+            echo ""
+            echo "[失败] 依赖检查未通过，脚本退出"
+            send_dep_notification "❌ 备份失败" "Kopia 仓库连接失败，请检查 rclone/kopia 配置后手动重试"
+            exit 1
+        fi
+        echo "[✓] 成功连接到 $EXPECTED_REMOTE"
+    fi
+
+    echo "[✓] 依赖检查通过: rclone 和 kopia 均已正确配置"
 }
 
-print_config
-
-# 执行依赖检查
-check_dependencies
-
-# ================= 交互式确认 =================
-if [ "$DRY_RUN" = false ] && [ "$AUTO_CONFIRM" = false ]; then
-    echo ""
-    echo "=========================================="
-    echo "⚠️  警告：即将执行备份操作"
-    echo "=========================================="
-    echo ""
-    echo "此操作将会："
-    echo "  1. 停止所有 Docker 服务"
-    echo "  2. 创建 Kopia 快照备份"
-    echo "  3. 重新启动所有服务"
-    echo ""
-    echo "💡 提示：建议先使用 --dry-run 参数测试："
-    echo "   $0 --dry-run"
-    echo ""
-    read -r -p "确认执行备份？[y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            echo "开始执行备份..."
-            ;;
-        *)
-            echo "已取消操作"
-            exit 0
-            ;;
-    esac
-fi
-
+# ================= 服务管理 =================
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
 
@@ -553,6 +526,40 @@ cleanup() {
     fi
     rm -rf "$LOCK_FILE"
 }
+
+# ================= 主流程 =================
+# 打印配置
+print_config
+
+# 执行依赖检查
+check_dependencies
+
+# ================= 交互式确认 =================
+if [ "$DRY_RUN" = false ] && [ "$AUTO_CONFIRM" = false ]; then
+    echo ""
+    echo "=========================================="
+    echo "⚠️  警告：即将执行备份操作"
+    echo "=========================================="
+    echo ""
+    echo "此操作将会："
+    echo "  1. 停止所有 Docker 服务"
+    echo "  2. 创建 Kopia 快照备份"
+    echo "  3. 重新启动所有服务"
+    echo ""
+    echo "💡 提示：建议先使用 --dry-run 参数测试："
+    echo "   $0 --dry-run"
+    echo ""
+    read -r -p "确认执行备份？[y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            echo "开始执行备份..."
+            ;;
+        *)
+            echo "已取消操作"
+            exit 0
+            ;;
+    esac
+fi
 
 # 检查锁文件，防止重复执行（使用 mkdir 原子操作）
 if ! mkdir "$LOCK_FILE" 2>/dev/null; then
