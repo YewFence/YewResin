@@ -142,7 +142,7 @@ print_config() {
     fi
 
     if [ -n "$APPRISE_NOTIFY_URL" ]; then
-        if [ ${#APPRISE_NOTIFY_URL} -gt 23 ]; then
+        if [ ${#APPRISE_NOTIFY_URL} -gt 20 ]; then
             local masked_notify="${APPRISE_NOTIFY_URL:0:10}...${APPRISE_NOTIFY_URL: -5}"
         else
             local masked_notify="****(已配置)"
@@ -586,14 +586,14 @@ cleanup() {
         send_notification "❌ 备份异常" "脚本异常退出 (exit code: $exit_code)，正在尝试恢复服务..."
         start_all_services
     fi
+    # 上传日志到 Gist
+    upload_to_gist
+    # 移除锁文件
     rm -rf "$LOCK_FILE"
     # 清理临时日志文件
     if [ -f "$LOG_OUTPUT_FILE" ]; then
         rm -f "$LOG_OUTPUT_FILE"
     fi
-        
-    # 上传日志到 Gist
-    upload_to_gist
 }
 
 # ================= 主流程 =================
@@ -733,14 +733,14 @@ TOTAL_SECS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
 HOURS=$((TOTAL_SECS / 3600))
 MINUTES=$(((TOTAL_SECS % 3600) / 60))
 SECS=$((TOTAL_SECS % 60))
-log "  %-20s %s\n" "开始时间:" "$SCRIPT_START_DATETIME"
-log "  %-20s %s\n" "结束时间:" "$SCRIPT_END_DATETIME"
+log "$(printf "  %-20s %s" "开始时间:" "$SCRIPT_START_DATETIME")"
+log "$(printf "  %-20s %s" "结束时间:" "$SCRIPT_END_DATETIME")"
 if [ $HOURS -gt 0 ]; then
-    log "  %-20s %d 小时 %d 分 %d 秒\n" "总耗时:" "$HOURS" "$MINUTES" "$SECS"
+    log "$(printf "  %-20s %d 小时 %d 分 %d 秒" "总耗时:" "$HOURS" "$MINUTES" "$SECS")"
 elif [ $MINUTES -gt 0 ]; then
-    log "  %-20s %d 分 %d 秒\n" "总耗时:" "$MINUTES" "$SECS"
+    log "$(printf "  %-20s %d 分 %d 秒" "总耗时:" "$MINUTES" "$SECS")"
 else
-    log "  %-20s %d 秒\n" "总耗时:" "$SECS"
+    log "$(printf "  %-20s %d 秒" "总耗时:" "$SECS")"
 fi
 echo "=========================================="
 
