@@ -172,8 +172,10 @@ cleanup() {
     fi
     # 上传日志到 Gist
     upload_to_gist
-    # 移除锁文件
-    rm -rf "$LOCK_FILE"
+    # 移除锁目录
+    if [ -d "$LOCK_FILE" ]; then
+        rmdir "$LOCK_FILE" || log "警告：无法移除锁目录，可能包含意外文件"
+    fi
     # 清理临时日志文件
     if [ -f "$LOG_OUTPUT_FILE" ]; then
         rm -f "$LOG_OUTPUT_FILE"
