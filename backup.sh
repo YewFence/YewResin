@@ -92,6 +92,9 @@ EXPECTED_REMOTE="${EXPECTED_REMOTE:-gdrive:backup}"
 GIST_TOKEN="${GIST_TOKEN:-}"
 GIST_ID="${GIST_ID:-}"
 GIST_LOG_PREFIX="${GIST_LOG_PREFIX:-yewresin-backup}"
+# Gist 日志清理配置
+GIST_MAX_LOGS="${GIST_MAX_LOGS:-30}"
+GIST_KEEP_FIRST_FILE="${GIST_KEEP_FIRST_FILE:-false}"
 # ==========================================
 
 # ================= 打印配置信息 =================
@@ -217,6 +220,97 @@ send_notification() {
 }
 
 # ================= GitHub Gist 上传 =================
+
+# 清理旧的 Gist 日志文件
+cleanup_old_gist_logs() {
+    # 如果 GIST_MAX_LOGS 为 0 或负数，跳过清理
+    if [ "$GIST_MAX_LOGS" -le 0 ] 2>/dev/null; then
+        return 0
+    fi
+
+    log "检查 Gist 日志数量..."
+
+    # 获取 Gist 信息
+    local gist_info
+    gist_info=$(curl -s \
+        -H "Authorization: token $GIST_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/gists/$GIST_ID" \
+        --max-time 30)
+
+    if ! echo "$gist_info" | grep -q '"id"'; then
+        log "⚠ 无法获取 Gist 信息，跳过清理"
+        return 1
+    fi
+
+    # 获取所有文件名（按字母顺序排序）
+    local all_files
+    all_files=$(echo "$gist_info" | jq -r '.files | keys | sort | .[]')
+
+    # 计算文件总数
+    local total_files
+    total_files=$(echo "$all_files" | grep -c .)
+
+    # 如果启用了保留第一个文件，从列表中排除
+    local files_to_consider="$all_files"
+    local first_file=""
+    if [ "$GIST_KEEP_FIRST_FILE" = "true" ] && [ "$total_files" -gt 0 ]; then
+        first_file=$(echo "$all_files" | head -n 1)
+        files_to_consider=$(echo "$all_files" | tail -n +2)
+        log "保留第一个文件: $first_file"
+    fi
+
+    # 计算可清理的文件数量
+    local cleanable_count
+    cleanable_count=$(echo "$files_to_consider" | grep -c . || echo 0)
+
+    # 如果文件数量未超过限制，跳过清理
+    if [ "$cleanable_count" -le "$GIST_MAX_LOGS" ]; then
+        log "当前日志数量 ($cleanable_count) 未超过限制 ($GIST_MAX_LOGS)，无需清理"
+        return 0
+    fi
+
+    # 计算需要删除的文件数量
+    local delete_count=$((cleanable_count - GIST_MAX_LOGS))
+    log "需要删除 $delete_count 个旧日志文件..."
+
+    # 获取需要删除的文件列表（最旧的文件，即排序后最前面的）
+    local files_to_delete
+    files_to_delete=$(echo "$files_to_consider" | head -n "$delete_count")
+
+    # 构建删除 payload
+    local delete_payload="{"
+    local first=true
+    while IFS= read -r filename; do
+        [ -z "$filename" ] && continue
+        if [ "$first" = true ]; then
+            first=false
+        else
+            delete_payload+=","
+        fi
+        # 使用 jq 转义文件名
+        local escaped_filename
+        escaped_filename=$(echo "$filename" | jq -Rs .)
+        delete_payload+="$escaped_filename:null"
+    done <<< "$files_to_delete"
+    delete_payload+="}"
+
+    # 执行删除
+    local delete_response
+    delete_response=$(curl -s -X PATCH \
+        -H "Authorization: token $GIST_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d "{\"files\": $delete_payload}" \
+        "https://api.github.com/gists/$GIST_ID" \
+        --max-time 30)
+
+    if echo "$delete_response" | grep -q '"id"'; then
+        log "✓ 已清理 $delete_count 个旧日志文件"
+    else
+        log "⚠ 清理旧日志失败: $delete_response"
+    fi
+}
+
 # 上传日志到 GitHub Gist
 upload_to_gist() {
     # 如果没配置 Gist，跳过上传
@@ -305,6 +399,8 @@ EOF
 
     if echo "$response" | grep -q '"id"'; then
         log "✓ 日志已上传到 Gist: https://gist.github.com/$GIST_ID"
+        # 上传成功后清理旧日志
+        cleanup_old_gist_logs
     else
         log "⚠ Gist 上传失败: $response"
     fi

@@ -30,6 +30,9 @@ EXPECTED_REMOTE="${EXPECTED_REMOTE:-gdrive:backup}"
 GIST_TOKEN="${GIST_TOKEN:-}"
 GIST_ID="${GIST_ID:-}"
 GIST_LOG_PREFIX="${GIST_LOG_PREFIX:-yewresin-backup}"
+# Gist 日志清理配置
+GIST_MAX_LOGS="${GIST_MAX_LOGS:-30}"
+GIST_KEEP_FIRST_FILE="${GIST_KEEP_FIRST_FILE:-false}"
 # ==========================================
 
 # ================= 打印配置信息 =================

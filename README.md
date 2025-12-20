@@ -70,6 +70,8 @@ APPRISE_NOTIFY_URL=tgram://bot_token/chat_id
 GIST_TOKEN=your_github_personal_access_token
 GIST_ID=your_gist_id
 GIST_LOG_PREFIX=yewresin-backup  # 可选，日志文件名前缀，默认为 yewresin-backup
+GIST_MAX_LOGS=30                 # 可选，最大保留日志数量，默认 30
+GIST_KEEP_FIRST_FILE=false       # 可选，清理时保留第一个文件作为标题
 ```
 
 ### 3. 运行
@@ -113,6 +115,8 @@ GIST_LOG_PREFIX=yewresin-backup  # 可选，日志文件名前缀，默认为 ye
 | `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限）|
 | `GIST_ID` | - | GitHub Gist ID（日志上传目标）|
 | `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 |
+| `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）|
+| `GIST_KEEP_FIRST_FILE` | `false` | 清理时保留第一个文件（用于 Gist 标题）|
 | `CONFIG_FILE` | `./backup.sh` 同目录的 `.env` | 配置文件路径 |
 
 ## 目录结构要求
@@ -235,6 +239,8 @@ https://gist.github.com/username/abc123def456789
 GIST_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
 GIST_ID=abc123def456789
 GIST_LOG_PREFIX=my-server-backup  # 可选，自定义日志文件名前缀
+GIST_MAX_LOGS=30                  # 可选，最大保留日志数量，默认 30
+GIST_KEEP_FIRST_FILE=false        # 可选，清理时保留第一个文件
 ```
 
 #### 4. 依赖检查
@@ -259,6 +265,19 @@ brew install jq
 - 完整的日志输出
 
 默认前缀为 `yewresin-backup`，可以通过 `GIST_LOG_PREFIX` 环境变量自定义。
+
+### 自动清理旧日志
+
+上传成功后，脚本会自动检查并清理超出数量限制的旧日志文件：
+
+- `GIST_MAX_LOGS`：最大保留日志数量（默认 30，设为 0 禁用清理）
+- `GIST_KEEP_FIRST_FILE`：设为 `true` 时，清理会跳过按文件名排序最小的文件
+
+**使用场景**：如果你想在 Gist 中保留一个自定义的标题/描述文件（如 `00-README.md`），可以：
+1. 在 Gist 中创建一个文件名较小的文件（如 `00-README.md`）作为标题
+2. 设置 `GIST_KEEP_FIRST_FILE=true`
+
+这样清理时会自动跳过这个标题文件，只清理日志文件。
 
 你可以通过 `https://gist.github.com/your_username/GIST_ID` 访问查看所有日志。Gist 会按文件名自动排序，最新的备份日志在最上面。
 
