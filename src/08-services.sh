@@ -113,7 +113,7 @@ start_service_with_status() {
 start_all_services() {
     local failed_services=()
 
-    log "恢复网关服务 (Priority)..."
+    log "恢复网关服务 (优先执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
             if ! start_service_with_status "$BASE_DIR/$svc"; then
@@ -139,15 +139,15 @@ start_all_services() {
 }
 
 stop_all_services() {
-    log "停止网关服务 (Priority)..."
-    for svc in "${PRIORITY_SERVICES[@]}"; do
+    log "停止普通服务..."
+    for svc in "${NORMAL_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
             stop_service "$BASE_DIR/$svc"
         fi
     done
 
-    log "停止普通服务..."
-    for svc in "${NORMAL_SERVICES[@]}"; do
+    log "停止网关服务 (最后执行)..."
+    for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
             stop_service "$BASE_DIR/$svc"
         fi
