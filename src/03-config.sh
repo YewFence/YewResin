@@ -80,7 +80,7 @@ print_config() {
     fi
 
     if [ -n "$APPRISE_NOTIFY_URL" ]; then
-        if [ ${#APPRISE_NOTIFY_URL} -gt 23 ]; then
+        if [ ${#APPRISE_NOTIFY_URL} -gt 20 ]; then
             local masked_notify="${APPRISE_NOTIFY_URL:0:10}...${APPRISE_NOTIFY_URL: -5}"
         else
             local masked_notify="****(已配置)"
