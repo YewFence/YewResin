@@ -111,6 +111,7 @@ EXPECTED_REMOTE=gdrive:backup
 | `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 |
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
+| `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 |
 | `APPRISE_URL` | - | Apprise 服务地址 |
 | `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
 | `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限）|

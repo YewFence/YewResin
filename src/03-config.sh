@@ -32,6 +32,7 @@ else
 fi
 # 锁文件路径
 LOCK_FILE="${LOCK_FILE:-/tmp/backup_maintenance.lock}"
+# 日志文件路径（已在 01-logging.sh 中初始化，此处仅用于 print_config 显示）
 # GitHub Gist 配置（可选）
 GIST_TOKEN="${GIST_TOKEN:-}"
 GIST_ID="${GIST_ID:-}"
@@ -53,6 +54,7 @@ print_config() {
     printf "$fmt" "EXPECTED_REMOTE(Kopia 预期远程仓库路径):" "$EXPECTED_REMOTE"
     printf "$fmt" "PRIORITY_SERVICES(优先服务):" "${PRIORITY_SERVICES[*]}"
     printf "$fmt" "LOCK_FILE(锁文件路径):" "$LOCK_FILE"
+    printf "$fmt" "LOG_FILE(日志文件路径):" "$LOG_FILE"
     printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
     printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
     # Gist 配置
