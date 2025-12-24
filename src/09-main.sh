@@ -93,8 +93,8 @@ start_all_services
 log ">>> 所有任务完成。"
 
 # ================= 显示耗时统计 =================
-SCRIPT_END_TIME=$(date +%s)
-SCRIPT_END_DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+SCRIPT_END_TIME=$(date -u +%s)
+SCRIPT_END_DATETIME=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
 TOTAL_SECS=$((SCRIPT_END_TIME - SCRIPT_START_TIME))
 
 # 转换为时分秒格式

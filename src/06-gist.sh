@@ -18,7 +18,7 @@ cleanup_old_gist_logs() {
         "https://api.github.com/gists/$GIST_ID" \
         --max-time 30)
 
-    if ! echo "$gist_info" | grep -q '"id"'; then
+    if ! echo "$gist_info" | jq -e '.id' > /dev/null 2>&1; then
         log "⚠ 无法获取 Gist 信息，跳过清理"
         return 1
     fi
@@ -71,7 +71,7 @@ cleanup_old_gist_logs() {
         "https://api.github.com/gists/$GIST_ID" \
         --max-time 30)
 
-    if echo "$delete_response" | grep -q '"id"'; then
+    if echo "$delete_response" | jq -e '.id' > /dev/null 2>&1; then
         log "✓ 已清理 $delete_count 个旧日志文件"
     else
         log "⚠ 清理旧日志失败: $delete_response"
@@ -95,7 +95,7 @@ upload_to_gist() {
     log "上传日志到 GitHub Gist..."
 
     local timestamp
-    timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+    timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')
 
     # 使用自定义前缀，如果为空则使用默认值
     local prefix="${GIST_LOG_PREFIX:-yewresin-backup}"
@@ -152,7 +152,7 @@ EOF
         --silent \
         --show-error 2>&1)
 
-    if echo "$response" | grep -q '"id"'; then
+    if echo "$response" | jq -e '.id' > /dev/null 2>&1; then
         log "✓ 日志已上传到 Gist: https://gist.github.com/$GIST_ID"
         # 上传成功后清理旧日志
         cleanup_old_gist_logs
