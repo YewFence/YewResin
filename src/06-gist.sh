@@ -95,7 +95,7 @@ upload_to_gist() {
     log "上传日志到 GitHub Gist..."
 
     local timestamp
-    timestamp=$(date '+%Y-%m-%d_%H-%M-%S')
+    timestamp=$(date -u '+%Y-%m-%d_%H-%M-%S')
 
     # 使用自定义前缀，如果为空则使用默认值
     local prefix="${GIST_LOG_PREFIX:-yewresin-backup}"
