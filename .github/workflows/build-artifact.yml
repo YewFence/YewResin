@@ -1,0 +1,31 @@
+name: Build Artifact
+
+on:
+  push:
+    branches-ignore:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run make
+        run: |
+          make
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yewresin-${{ github.sha }}
+          path: |
+            yewresin.sh
+            .env.example
+          retention-days: 7
