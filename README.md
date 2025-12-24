@@ -89,12 +89,14 @@ EXPECTED_REMOTE=gdrive:backup
 ```
 
 ### 4. 定时任务
-> 按需配置，此处我们以每天凌晨三点运行为例
+> 按需配置，此处我们以每天北京时间凌晨三点运行为例（假设服务器使用 UTC 时区）
 ```bash
-(crontab -l 2>/dev/null; echo '0 3 * * * /path/to/yewresin.sh -y') | crontab -
+(crontab -l 2>/dev/null; echo '0 19 * * * /path/to/yewresin.sh -y') | crontab -
 ```
 
-> **注意**：脚本内部使用 exec 重定向，cron 的 >> 重定向会被覆盖，无法通过 cron 自定义日志输出路径，可通过自定义 `LOG_FILE`（默认为脚本同目录下的 `yewresin.log`）自定义日志输出路径。
+> **注意**：
+> - cron 使用系统时区，请先确认服务器时区（`timedatectl` 或 `date`），上述示例假设服务器为 UTC 时区
+> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 `yewresin.log`）
 
 ## 命令行参数
 
@@ -308,26 +310,29 @@ brew install jq
 
 ### 常用配置示例
 
-> **注意**：脚本内部使用 exec 重定向，cron 的 >> 重定向会被覆盖，无法通过 cron 自定义日志输出路径，可通过自定义 `LOG_FILE`（默认为脚本同目录下的 `yewresin.log`）自定义日志输出路径。
+> **注意**：
+> - 以下示例假设服务器使用 UTC 时区，时间已转换为北京时间对应的 UTC 时间
+> - 请先确认服务器时区（`timedatectl` 或 `date`），如服务器使用本地时区则无需转换
+> - 脚本会自动将日志输出到 `LOG_FILE`，无需在 cron 中配置重定向
 
 ```bash
 # 编辑 crontab
 crontab -e
 
-# 每天凌晨 3 点执行备份
-0 3 * * * /path/to/yewresin.sh -y
+# 每天北京时间凌晨 3 点执行备份（UTC 19:00）
+0 19 * * * /path/to/yewresin.sh -y
 
-# 每周日凌晨 2 点执行备份
-0 2 * * 0 /path/to/yewresin.sh -y
+# 每周日北京时间凌晨 2 点执行备份（UTC 周六 18:00）
+0 18 * * 6 /path/to/yewresin.sh -y
 
-# 每 6 小时执行一次（0点、6点、12点、18点）
+# 每 6 小时执行一次（UTC 0点、6点、12点、18点）
 0 */6 * * * /path/to/yewresin.sh -y
 
-# 每天凌晨 3 点和 15 点执行（一天两次）
-0 3,15 * * * /path/to/yewresin.sh -y
+# 每天北京时间凌晨 3 点和 15 点执行（UTC 19:00 和 07:00）
+0 7,19 * * * /path/to/yewresin.sh -y
 
-# 每月 1 日和 15 日凌晨 4 点执行
-0 4 1,15 * * /path/to/yewresin.sh -y
+# 每月 1 日和 15 日北京时间凌晨 4 点执行（UTC 前一天 20:00）
+0 20 1,15 * * /path/to/yewresin.sh -y
 ```
 
 ### 使用 Systemd Timer
