@@ -7,6 +7,15 @@
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
 
+# 检查目录下是否存在 compose 配置文件
+has_compose_file() {
+    local svc_path="$1"
+    [ -f "$svc_path/compose.yaml" ] || \
+    [ -f "$svc_path/compose.yml" ] || \
+    [ -f "$svc_path/docker-compose.yaml" ] || \
+    [ -f "$svc_path/docker-compose.yml" ]
+}
+
 # 检查服务是否正在运行
 is_service_running() {
     local svc_path="$1"
@@ -17,7 +26,7 @@ is_service_running() {
     local has_compose=false
     if [ -x "$svc_path/compose-status.sh" ] || [ -x "$svc_path/compose-up.sh" ] || [ -x "$svc_path/compose-log.sh" ]; then
         has_compose=true
-    elif find "$svc_path" -maxdepth 1 \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "compose*.yml" -o -name "compose*.yaml" \) -print -quit 2>/dev/null | grep -q .; then
+    elif has_compose_file "$svc_path"; then
         has_compose=true
     fi
 
@@ -58,9 +67,9 @@ stop_service() {
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
         elif [ -x "$svc_path/compose-down.sh" ]; then
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
-        elif [ -f "$svc_path/docker-compose.yml" ]; then
+        elif has_compose_file "$svc_path"; then
             log "[DRY-RUN] 将停止 $svc_name (使用 docker compose stop)"
-        else 
+        else
             log "[DRY-RUN] 警告：停止 $svc_name 失败，无法识别停止方法"
         fi
         return 0
@@ -77,7 +86,7 @@ stop_service() {
             log "错误：停止 $svc_name 失败"
             return 1
         fi
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
+    elif has_compose_file "$svc_path"; then
         log "停止 $svc_name ..."
         if ! (cd "$svc_path" && docker compose stop); then
             log "错误：停止 $svc_name 失败"
@@ -106,9 +115,9 @@ start_service_with_status() {
     if [ "$DRY_RUN" = true ]; then
         if [ -x "$svc_path/compose-up.sh" ]; then
             log "[DRY-RUN] 将启动 $svc_name (使用 compose-up.sh)"
-        elif [ -f "$svc_path/docker-compose.yml" ]; then
+        elif has_compose_file "$svc_path"; then
             log "[DRY-RUN] 将启动 $svc_name (使用 docker compose up -d)"
-        else 
+        else
             log "[DRY-RUN] 警告：启动 $svc_name 失败，无法识别启动方法"
         fi
         return 0
@@ -120,13 +129,13 @@ start_service_with_status() {
             log "警告：启动 $svc_name 失败"
             return 1
         fi
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
+    elif has_compose_file "$svc_path"; then
         log "启动 $svc_name ..."
         if ! (cd "$svc_path" && docker compose up -d); then
             log "警告：启动 $svc_name 失败"
             return 1
         fi
-    else 
+    else
         log "警告：启动 $svc_name 失败，无法识别启动方法"
     fi
     return 0
