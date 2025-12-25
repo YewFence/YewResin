@@ -15,8 +15,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run make
-        run: |
-          make
+        run: VERSION=${{ github.ref_name }} make
 
       - name: Create Tagged Release
         uses: softprops/action-gh-release@v2

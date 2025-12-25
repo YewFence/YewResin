@@ -4,14 +4,20 @@
 SOURCES := $(sort $(wildcard src/*.sh))
 TARGET := yewresin.sh
 
+# 版本号：优先使用 VERSION 环境变量，否则使用 UTC 构建时间
+VERSION ?= $(shell date -u +"%Y%m%d.%H%M%S")
+
 .PHONY: build clean help
 
 # 默认目标
 build: $(TARGET)
 
 $(TARGET): $(SOURCES)
-	@echo "Building $(TARGET) from modules..."
-	@cat $(SOURCES) > $(TARGET)
+	@echo "Building $(TARGET) (version: $(VERSION))..."
+	@echo "# YewResin $(VERSION)" > $(TARGET)
+	@echo "# https://github.com/YewFence/YewResin" >> $(TARGET)
+	@echo "" >> $(TARGET)
+	@cat $(SOURCES) >> $(TARGET)
 	@chmod +x $(TARGET)
 	@echo "Done: $(TARGET) ($(shell wc -l < $(TARGET)) lines)"
 
