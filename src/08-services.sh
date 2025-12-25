@@ -62,38 +62,41 @@ stop_service() {
     # 记录该服务原本是运行中的
     RUNNING_SERVICES["$svc_name"]=1
 
-    if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-stop.sh" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
-        elif [ -x "$svc_path/compose-down.sh" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
-        elif has_compose_file "$svc_path"; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 docker compose stop)"
-        else
+    # 确定停止方法
+    local stop_cmd=""
+    local stop_msg=""
+    if [ -x "$svc_path/compose-stop.sh" ]; then
+        stop_cmd="./compose-stop.sh"
+        stop_msg="使用 compose-stop.sh"
+    elif [ -x "$svc_path/compose-down.sh" ]; then
+        stop_cmd="./compose-down.sh"
+        stop_msg="使用 compose-down.sh"
+    elif has_compose_file "$svc_path"; then
+        stop_cmd="docker compose stop"
+        stop_msg="使用 docker compose stop"
+    fi
+
+    # 无法识别停止方法
+    if [ -z "$stop_cmd" ]; then
+        if [ "$DRY_RUN" = true ]; then
             log "[DRY-RUN] 警告：停止 $svc_name 失败，无法识别停止方法"
+            return 0
+        else
+            log "错误：停止 $svc_name 失败，无法识别停止方法"
+            return 1
         fi
+    fi
+
+    # DRY_RUN 模式只打印
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] 将停止 $svc_name ($stop_msg)"
         return 0
     fi
-    if [ -x "$svc_path/compose-stop.sh" ]; then
-        log "停止 $svc_name (使用 compose-stop.sh)..."
-        if ! (cd "$svc_path" && ./compose-stop.sh); then
-            log "错误：停止 $svc_name 失败"
-            return 1
-        fi
-    elif [ -x "$svc_path/compose-down.sh" ]; then
-        log "停止 $svc_name (使用 compose-down.sh)..."
-        if ! (cd "$svc_path" && ./compose-down.sh); then
-            log "错误：停止 $svc_name 失败"
-            return 1
-        fi
-    elif has_compose_file "$svc_path"; then
-        log "停止 $svc_name ..."
-        if ! (cd "$svc_path" && docker compose stop); then
-            log "错误：停止 $svc_name 失败"
-            return 1
-        fi
-    else
-        log "错误：停止 $svc_name 失败，无法识别停止方法"
+
+    # 实际执行停止
+    log "停止 $svc_name ($stop_msg)..."
+    if ! (cd "$svc_path" && $stop_cmd); then
+        log "错误：停止 $svc_name 失败"
         return 1
     fi
     return 0
@@ -111,32 +114,38 @@ start_service_with_status() {
         return 0
     fi
 
-    # dry run 模式下的模拟启动
-    if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-up.sh" ]; then
-            log "[DRY-RUN] 将启动 $svc_name (使用 compose-up.sh)"
-        elif has_compose_file "$svc_path"; then
-            log "[DRY-RUN] 将启动 $svc_name (使用 docker compose up -d)"
-        else
+    # 确定启动方法
+    local start_cmd=""
+    local start_msg=""
+    if [ -x "$svc_path/compose-up.sh" ]; then
+        start_cmd="./compose-up.sh"
+        start_msg="使用 compose-up.sh"
+    elif has_compose_file "$svc_path"; then
+        start_cmd="docker compose up -d"
+        start_msg="使用 docker compose up -d"
+    fi
+
+    # 无法识别启动方法
+    if [ -z "$start_cmd" ]; then
+        if [ "$DRY_RUN" = true ]; then
             log "[DRY-RUN] 警告：启动 $svc_name 失败，无法识别启动方法"
+        else
+            log "警告：启动 $svc_name 失败，无法识别启动方法"
         fi
+        return 1
+    fi
+
+    # DRY_RUN 模式只打印
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] 将启动 $svc_name ($start_msg)"
         return 0
     fi
 
-    if [ -x "$svc_path/compose-up.sh" ]; then
-        log "启动 $svc_name (使用 compose-up.sh)..."
-        if ! (cd "$svc_path" && ./compose-up.sh); then
-            log "警告：启动 $svc_name 失败"
-            return 1
-        fi
-    elif has_compose_file "$svc_path"; then
-        log "启动 $svc_name ..."
-        if ! (cd "$svc_path" && docker compose up -d); then
-            log "警告：启动 $svc_name 失败"
-            return 1
-        fi
-    else
-        log "警告：启动 $svc_name 失败，无法识别启动方法"
+    # 实际执行启动
+    log "启动 $svc_name ($start_msg)..."
+    if ! (cd "$svc_path" && $start_cmd); then
+        log "警告：启动 $svc_name 失败"
+        return 1
     fi
     return 0
 }
