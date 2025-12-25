@@ -150,26 +150,31 @@ start_service_with_status() {
     return 0
 }
 
+# 辅助函数：启动服务，如果失败则记录到数组
+# 使用 nameref 引用外部数组
+_start_service_or_record() {
+    local svc_path="$1"
+    local -n _failed_arr=$2
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    if ! start_service_with_status "$svc_path"; then
+        _failed_arr+=("$svc_name")
+    fi
+}
+
 # 启动所有服务的函数
 start_all_services() {
     local failed_services=()
 
     log "恢复网关服务 (优先执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! start_service_with_status "$BASE_DIR/$svc"; then
-                failed_services+=("$svc")
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _start_service_or_record "$BASE_DIR/$svc" failed_services
     done
 
     log "恢复普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! start_service_with_status "$BASE_DIR/$svc"; then
-                failed_services+=("$svc")
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _start_service_or_record "$BASE_DIR/$svc" failed_services
     done
 
     # 如果有服务启动失败，发送通知
@@ -179,27 +184,28 @@ start_all_services() {
     fi
 }
 
+# 辅助函数：停止服务，如果失败则退出并发送通知
+_stop_service_or_exit() {
+    local svc_path="$1"
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    if ! stop_service "$svc_path"; then
+        log "!!! 服务停止失败，中止备份以保护数据安全"
+        send_notification "❌ 备份中止" "服务 $svc_name 停止失败，已中止备份以避免数据损坏"
+        exit 1
+    fi
+}
+
 stop_all_services() {
     log "停止普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! stop_service "$BASE_DIR/$svc"; then
-                log "!!! 服务停止失败，中止备份以保护数据安全"
-                send_notification "❌ 备份中止" "服务 $svc 停止失败，已中止备份以避免数据损坏"
-                exit 1
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _stop_service_or_exit "$BASE_DIR/$svc"
     done
 
     log "停止网关服务 (最后执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! stop_service "$BASE_DIR/$svc"; then
-                log "!!! 服务停止失败，中止备份以保护数据安全"
-                send_notification "❌ 备份中止" "服务 $svc 停止失败，已中止备份以避免数据损坏"
-                exit 1
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _stop_service_or_exit "$BASE_DIR/$svc"
     done
 }
 
