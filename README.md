@@ -7,7 +7,10 @@
 - 自动停止所有 Docker Compose 服务，创建一致性快照
 - 支持优先级服务（如网关）的顺序控制：最后停止，最先启动
 - 只重启原本运行中的服务，不会启动原本停止的服务
-- 支持 [Apprise](https://github.com/caronc/apprise-api) 通知（Telegram、微信等），可部署到 Vercel
+- **快速失败**：服务停止失败时立即中止备份，避免在服务运行时备份导致数据损坏
+- 支持多种 compose 配置文件格式（`compose.yaml`、`compose.yml`、`docker-compose.yaml`、`docker-compose.yml`）
+- 支持 [Apprise](https://github.com/caronc/apprise-api) 通知
+> 可使用 [YewFence/apprise](https://github.com/YewFence/apprise) 快速部署到 Vercel
 - 异常退出时自动恢复服务
 - 支持 dry-run 模式预览操作
 - 防止重复运行的锁机制
@@ -132,22 +135,38 @@ EXPECTED_REMOTE=gdrive:backup
 ```
 /opt/docker_file/           # BASE_DIR
 ├── caddy/                  # 网关服务
-│   ├── docker-compose.yml
+│   ├── compose.yaml        # 支持多种命名格式
 │   └── compose-up.sh       # 可选：自定义启动脚本
 ├── nginx/
 │   └── docker-compose.yml
 ├── app1/                   # 普通服务
-│   └── docker-compose.yml
+│   └── compose.yml
 └── app2/
-    └── docker-compose.yml
+    └── docker-compose.yaml
 ```
 
-脚本会自动识别包含 `docker-compose.yml` 或 `compose*.yaml` 的目录作为服务。
+脚本会自动识别包含以下任一配置文件的目录作为服务：
+- `compose.yaml`
+- `compose.yml`
+- `docker-compose.yaml`
+- `docker-compose.yml`
 
 ### 启停逻辑
 
-- 若服务目录下有 `docker-compose.yml` 脚本将尝试使用 `docker compose up -d` `docker compose stop` 启停服务
-- 若服务目录下无 `docker-compose.yml` 脚本将尝试使用 `compose-stop.sh`/`compose-down.sh`/`compose-up.sh` 启停服务，请确认启停脚本已正确配置
+服务启停按以下优先级执行：
+
+1. **自定义脚本优先**：若目录下存在 `compose-stop.sh`/`compose-down.sh`/`compose-up.sh`，优先使用脚本启停
+2. **自动识别配置文件**：若无自定义脚本但存在 compose 配置文件，使用 `docker compose up -d` / `docker compose stop` 启停
+
+### 快速失败机制
+
+为保护数据完整性，脚本在停止服务阶段采用快速失败策略：
+
+- 如果任何服务停止失败，脚本会**立即中止**，不会继续执行备份
+- 已停止的服务会通过 cleanup 函数自动恢复
+- 通过 Apprise 发送通知告知失败原因
+
+这确保了不会在服务仍在运行（可能正在写入数据）时进行备份，避免数据库文件损坏等问题。
 
 ## 开发说明
 

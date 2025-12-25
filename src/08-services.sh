@@ -7,6 +7,15 @@
 # 记录原本运行中的服务
 declare -A RUNNING_SERVICES
 
+# 检查目录下是否存在 compose 配置文件
+has_compose_file() {
+    local svc_path="$1"
+    [ -f "$svc_path/compose.yaml" ] || \
+    [ -f "$svc_path/compose.yml" ] || \
+    [ -f "$svc_path/docker-compose.yaml" ] || \
+    [ -f "$svc_path/docker-compose.yml" ]
+}
+
 # 检查服务是否正在运行
 is_service_running() {
     local svc_path="$1"
@@ -17,7 +26,7 @@ is_service_running() {
     local has_compose=false
     if [ -x "$svc_path/compose-status.sh" ] || [ -x "$svc_path/compose-up.sh" ] || [ -x "$svc_path/compose-log.sh" ]; then
         has_compose=true
-    elif find "$svc_path" -maxdepth 1 \( -name "docker-compose*.yml" -o -name "docker-compose*.yaml" -o -name "compose*.yml" -o -name "compose*.yaml" \) -print -quit 2>/dev/null | grep -q .; then
+    elif has_compose_file "$svc_path"; then
         has_compose=true
     fi
 
@@ -53,29 +62,44 @@ stop_service() {
     # 记录该服务原本是运行中的
     RUNNING_SERVICES["$svc_name"]=1
 
-    if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-stopn.sh" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
-        elif [ -x "$svc_path/compose-down.sh" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
-        elif [ -f "$svc_path/docker-compose.yml" ]; then
-            log "[DRY-RUN] 将停止 $svc_name (使用 docker compose stop)"
-        else 
+    # 确定停止方法
+    local stop_cmd=""
+    local stop_msg=""
+    if [ -x "$svc_path/compose-stop.sh" ]; then
+        stop_cmd="./compose-stop.sh"
+        stop_msg="使用 compose-stop.sh"
+    elif [ -x "$svc_path/compose-down.sh" ]; then
+        stop_cmd="./compose-down.sh"
+        stop_msg="使用 compose-down.sh"
+    elif has_compose_file "$svc_path"; then
+        stop_cmd="docker compose stop"
+        stop_msg="使用 docker compose stop"
+    fi
+
+    # 无法识别停止方法
+    if [ -z "$stop_cmd" ]; then
+        if [ "$DRY_RUN" = true ]; then
             log "[DRY-RUN] 警告：停止 $svc_name 失败，无法识别停止方法"
+            return 0
+        else
+            log "错误：停止 $svc_name 失败，无法识别停止方法"
+            return 1
         fi
+    fi
+
+    # DRY_RUN 模式只打印
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] 将停止 $svc_name ($stop_msg)"
         return 0
     fi
-    if [ -x "$svc_path/compose-stopn.sh" ]; then
-        log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
-    elif [ -x "$svc_path/compose-down.sh" ]; then
-        log "Stopping $svc_name (使用 compose-down.sh)..."
-        (cd "$svc_path" && ./compose-down.sh) || log "警告：停止 $svc_name 失败"
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Stopping $svc_name ..."
-        (cd "$svc_path" && docker compose stop) || log "警告：停止 $svc_name 失败"
-    else 
-        log "警告：停止 $svc_name 失败，无法识别停止方法"
+
+    # 实际执行停止
+    log "停止 $svc_name ($stop_msg)..."
+    if ! (cd "$svc_path" && $stop_cmd); then
+        log "错误：停止 $svc_name 失败"
+        return 1
     fi
+    return 0
 }
 
 # 启动单个服务并返回状态的函数
@@ -90,34 +114,53 @@ start_service_with_status() {
         return 0
     fi
 
-    # dry run 模式下的模拟启动
-    if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-up.sh" ]; then
-            log "[DRY-RUN] 将启动 $svc_name (使用 compose-up.sh)"
-        elif [ -f "$svc_path/docker-compose.yml" ]; then
-            log "[DRY-RUN] 将启动 $svc_name (使用 docker compose up -d)"
-        else 
+    # 确定启动方法
+    local start_cmd=""
+    local start_msg=""
+    if [ -x "$svc_path/compose-up.sh" ]; then
+        start_cmd="./compose-up.sh"
+        start_msg="使用 compose-up.sh"
+    elif has_compose_file "$svc_path"; then
+        start_cmd="docker compose up -d"
+        start_msg="使用 docker compose up -d"
+    fi
+
+    # 无法识别启动方法
+    if [ -z "$start_cmd" ]; then
+        if [ "$DRY_RUN" = true ]; then
             log "[DRY-RUN] 警告：启动 $svc_name 失败，无法识别启动方法"
+        else
+            log "警告：启动 $svc_name 失败，无法识别启动方法"
         fi
+        return 1
+    fi
+
+    # DRY_RUN 模式只打印
+    if [ "$DRY_RUN" = true ]; then
+        log "[DRY-RUN] 将启动 $svc_name ($start_msg)"
         return 0
     fi
 
-    if [ -x "$svc_path/compose-up.sh" ]; then
-        log "启动 $svc_name (使用 compose-up.sh)..."
-        if ! (cd "$svc_path" && ./compose-up.sh); then
-            log "警告：启动 $svc_name 失败"
-            return 1
-        fi
-    elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "启动 $svc_name ..."
-        if ! (cd "$svc_path" && docker compose up -d); then
-            log "警告：启动 $svc_name 失败"
-            return 1
-        fi
-    else 
-        log "警告：启动 $svc_name 失败，无法识别启动方法"
+    # 实际执行启动
+    log "启动 $svc_name ($start_msg)..."
+    if ! (cd "$svc_path" && $start_cmd); then
+        log "警告：启动 $svc_name 失败"
+        return 1
     fi
     return 0
+}
+
+# 辅助函数：启动服务，如果失败则记录到数组
+# 使用 nameref 引用外部数组
+_start_service_or_record() {
+    local svc_path="$1"
+    local -n _failed_arr=$2
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    if ! start_service_with_status "$svc_path"; then
+        _failed_arr+=("$svc_name")
+    fi
 }
 
 # 启动所有服务的函数
@@ -126,20 +169,12 @@ start_all_services() {
 
     log "恢复网关服务 (优先执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! start_service_with_status "$BASE_DIR/$svc"; then
-                failed_services+=("$svc")
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _start_service_or_record "$BASE_DIR/$svc" failed_services
     done
 
     log "恢复普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            if ! start_service_with_status "$BASE_DIR/$svc"; then
-                failed_services+=("$svc")
-            fi
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _start_service_or_record "$BASE_DIR/$svc" failed_services
     done
 
     # 如果有服务启动失败，发送通知
@@ -149,19 +184,28 @@ start_all_services() {
     fi
 }
 
+# 辅助函数：停止服务，如果失败则退出并发送通知
+_stop_service_or_exit() {
+    local svc_path="$1"
+    local svc_name
+    svc_name=$(basename "$svc_path")
+
+    if ! stop_service "$svc_path"; then
+        log "!!! 服务停止失败，中止备份以保护数据安全"
+        send_notification "❌ 备份中止" "服务 $svc_name 停止失败，已中止备份以避免数据损坏"
+        exit 1
+    fi
+}
+
 stop_all_services() {
     log "停止普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            stop_service "$BASE_DIR/$svc"
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _stop_service_or_exit "$BASE_DIR/$svc"
     done
 
     log "停止网关服务 (最后执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
-        if [ -d "$BASE_DIR/$svc" ]; then
-            stop_service "$BASE_DIR/$svc"
-        fi
+        [ -d "$BASE_DIR/$svc" ] && _stop_service_or_exit "$BASE_DIR/$svc"
     done
 }
 
