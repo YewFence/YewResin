@@ -54,7 +54,7 @@ stop_service() {
     RUNNING_SERVICES["$svc_name"]=1
 
     if [ "$DRY_RUN" = true ]; then
-        if [ -x "$svc_path/compose-stopn.sh" ]; then
+        if [ -x "$svc_path/compose-stop.sh" ]; then
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
         elif [ -x "$svc_path/compose-down.sh" ]; then
             log "[DRY-RUN] 将停止 $svc_name (使用 compose-down.sh)"
@@ -65,17 +65,29 @@ stop_service() {
         fi
         return 0
     fi
-    if [ -x "$svc_path/compose-stopn.sh" ]; then
-        log "[DRY-RUN] 将停止 $svc_name (使用 compose-stop.sh)"
+    if [ -x "$svc_path/compose-stop.sh" ]; then
+        log "停止 $svc_name (使用 compose-stop.sh)..."
+        if ! (cd "$svc_path" && ./compose-stop.sh); then
+            log "错误：停止 $svc_name 失败"
+            return 1
+        fi
     elif [ -x "$svc_path/compose-down.sh" ]; then
-        log "Stopping $svc_name (使用 compose-down.sh)..."
-        (cd "$svc_path" && ./compose-down.sh) || log "警告：停止 $svc_name 失败"
+        log "停止 $svc_name (使用 compose-down.sh)..."
+        if ! (cd "$svc_path" && ./compose-down.sh); then
+            log "错误：停止 $svc_name 失败"
+            return 1
+        fi
     elif [ -f "$svc_path/docker-compose.yml" ]; then
-        log "Stopping $svc_name ..."
-        (cd "$svc_path" && docker compose stop) || log "警告：停止 $svc_name 失败"
-    else 
-        log "警告：停止 $svc_name 失败，无法识别停止方法"
+        log "停止 $svc_name ..."
+        if ! (cd "$svc_path" && docker compose stop); then
+            log "错误：停止 $svc_name 失败"
+            return 1
+        fi
+    else
+        log "错误：停止 $svc_name 失败，无法识别停止方法"
+        return 1
     fi
+    return 0
 }
 
 # 启动单个服务并返回状态的函数
@@ -153,14 +165,22 @@ stop_all_services() {
     log "停止普通服务..."
     for svc in "${NORMAL_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
-            stop_service "$BASE_DIR/$svc"
+            if ! stop_service "$BASE_DIR/$svc"; then
+                log "!!! 服务停止失败，中止备份以保护数据安全"
+                send_notification "❌ 备份中止" "服务 $svc 停止失败，已中止备份以避免数据损坏"
+                exit 1
+            fi
         fi
     done
 
     log "停止网关服务 (最后执行)..."
     for svc in "${PRIORITY_SERVICES[@]}"; do
         if [ -d "$BASE_DIR/$svc" ]; then
-            stop_service "$BASE_DIR/$svc"
+            if ! stop_service "$BASE_DIR/$svc"; then
+                log "!!! 服务停止失败，中止备份以保护数据安全"
+                send_notification "❌ 备份中止" "服务 $svc 停止失败，已中止备份以避免数据损坏"
+                exit 1
+            fi
         fi
     done
 }
