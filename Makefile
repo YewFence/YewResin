@@ -14,7 +14,8 @@ build: $(TARGET)
 
 $(TARGET): $(SOURCES)
 	@echo "Building $(TARGET) (version: $(VERSION))..."
-	@echo "# YewResin $(VERSION)" > $(TARGET)
+	@echo "#!/bin/bash" > $(TARGET)
+	@echo "# YewResin $(VERSION)" >> $(TARGET)
 	@echo "# https://github.com/YewFence/YewResin" >> $(TARGET)
 	@echo "" >> $(TARGET)
 	@cat $(SOURCES) >> $(TARGET)
