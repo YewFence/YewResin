@@ -29,6 +29,11 @@ send_notification() {
         return 0
     fi
 
+    # 如果设置了设备名称，添加到标题前
+    if [ -n "$DEVICE_NAME" ]; then
+        title="[$DEVICE_NAME] $title"
+    fi
+
     local response
     response=$(curl -X POST "$APPRISE_URL" \
         -H "Content-Type: application/json" \

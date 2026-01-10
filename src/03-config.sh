@@ -40,6 +40,8 @@ GIST_LOG_PREFIX="${GIST_LOG_PREFIX:-yewresin-backup}"
 # Gist 日志清理配置
 GIST_MAX_LOGS="${GIST_MAX_LOGS:-30}"
 GIST_KEEP_FIRST_FILE="${GIST_KEEP_FIRST_FILE:-false}"
+# 设备名称（用于区分不同服务器的通知）
+DEVICE_NAME="${DEVICE_NAME:-}"
 # ==========================================
 
 # ================= 打印配置信息 =================
@@ -57,6 +59,12 @@ print_config() {
     printf "$fmt" "LOG_FILE(日志文件路径):" "$LOG_FILE"
     printf "$fmt" "DRY_RUN(模拟运行?):" "$DRY_RUN"
     printf "$fmt" "AUTO_CONFIRM(自动确认):" "$AUTO_CONFIRM"
+    # 设备名称
+    if [ -n "$DEVICE_NAME" ]; then
+        printf "$fmt" "DEVICE_NAME(设备名称):" "$DEVICE_NAME"
+    else
+        printf "$fmt" "DEVICE_NAME(设备名称):" "(未配置)"
+    fi
     # Gist 配置
     if [ -n "$GIST_TOKEN" ] && [ -n "$GIST_ID" ]; then
         printf "$fmt" "GIST_ID(Gist ID):" "$GIST_ID"
