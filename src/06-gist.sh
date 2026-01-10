@@ -104,7 +104,7 @@ upload_to_gist() {
     # 读取日志文件内容
     local raw_log
     if [ -f "$LOG_FILE" ]; then
-        raw_log=$(cat "$LOG_FILE")
+        raw_log=$(<"$LOG_FILE")
     else
         raw_log="日志文件不存在"
     fi

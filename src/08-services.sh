@@ -182,6 +182,7 @@ start_all_services() {
         log "!!! 以下服务启动失败: ${failed_services[*]}"
         send_notification "⚠️ 服务恢复异常" "以下服务启动失败: ${failed_services[*]}"
     fi
+    return 0
 }
 
 # 辅助函数：停止服务，如果失败则退出并发送通知
@@ -207,6 +208,7 @@ stop_all_services() {
     for svc in "${PRIORITY_SERVICES[@]}"; do
         [ -d "$BASE_DIR/$svc" ] && _stop_service_or_exit "$BASE_DIR/$svc"
     done
+    return 0
 }
 
 # 清理函数：确保异常退出时也能恢复服务
