@@ -9,7 +9,7 @@ VERSION ?= $(shell git describe --tags --always 2>/dev/null || date -u +"%Y%m%d.
 
 # 构建标志
 LDFLAGS := -s -w -X main.version=$(VERSION)
-GO_BUILD := go build -ldflags "$(LDFLAGS)"
+GO_BUILD := CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)"
 
 # 目标平台
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64
