@@ -1,6 +1,12 @@
 # YewResin - Docker 服务备份工具
 
-一个自动化的 Docker Compose 服务备份脚本，使用 Kopia + rclone 实现本地快照与云端同步。
+一个自动化的 Docker Compose 服务备份工具，使用 Kopia + rclone 实现本地快照与云端同步。
+
+提供两个版本：
+- **Shell 版本** (`v1.x`) - 轻量级 Bash 脚本，适合简单部署
+- **Go 版本** (`v2.x`) - 跨平台二进制，性能更优，并行处理
+
+两个版本的核心功能完全一致，依赖也相同，可根据使用场景自由选择。
 
 ## 功能特点
 
@@ -38,36 +44,49 @@ sudo apt update && sudo apt install kopia
 
 # 连接 Kopia 仓库
 kopia repository connect rclone --remote-path="gdrive:backup"
-
-# 下载该脚本
-mkdir ~/yewresin
-cd ~/yewresin
-wget https://github.com/YewFence/YewResin/releases/download/latest/yewresin.sh
 ```
 
-该标签内的脚本会在main分支推送后自动更新，也可以自行下载指定版本的脚本
+### 2. 下载 YewResin
 
-> 也可以下载源码后自定义逻辑
-> ```bash
-> git clone https://github.com/YewFence/YewResin.git
-> cd YewResin
-> ```
-> 然后自行更改 `src/` 下的各个模块，可能需要自定义的有 `src/08-services.sh` 内路径内是否含有服务的识别逻辑，启停服务的脚本的名称/具体的命令
-> 
-> 然后，使用 
-> ```bash 
-> make
-> ```
-> 生成最终脚本，它会输出在项目根目录的 `yewresin.sh`
+#### Shell 版本 (v1.x)
 
-### 2. 配置
+```bash
+mkdir ~/yewresin && cd ~/yewresin
+wget https://github.com/YewFence/YewResin/releases/download/latest/yewresin.sh
+chmod +x yewresin.sh
+```
 
-创建 `.env` 文件（与 `yewresin.sh` 同目录）：
+#### Go 版本 (v2.x)
+
+```bash
+mkdir ~/yewresin && cd ~/yewresin
+# 根据系统架构选择对应的二进制文件
+# Linux x64
+wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-linux-amd64 -O yewresin
+# Linux ARM64
+wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-linux-arm64 -O yewresin
+# macOS Apple Silicon
+wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-darwin-arm64 -O yewresin
+# macOS Intel
+wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-darwin-amd64 -O yewresin
+# Windows
+# 下载 yewresin-windows-amd64.exe
+
+chmod +x yewresin
+```
+
+> `latest` 标签会在 main 分支推送后自动更新，也可以下载指定版本：
+> - Shell 版本：`v1.x.x` 标签
+> - Go 版本：`v2.x.x` 标签
+
+### 3. 配置
+
+创建 `.env` 文件（与 yewresin 同目录）：
 
 ```bash
 # 在脚本所在目录下载示例文件
-wget https://github.com/YewFence/YewResin/releases/download/latest/default.env.example
-cp default.env.example .env
+wget https://github.com/YewFence/YewResin/releases/download/latest/.env.example
+cp .env.example .env
 ```
 
 必要环境变量配置：
@@ -78,23 +97,26 @@ BASE_DIR=/opt/docker_file
 EXPECTED_REMOTE=gdrive:backup
 ```
 
-### 3. 运行
+### 4. 运行
 
 ```bash
 # 模拟运行（推荐先测试）
-./yewresin.sh --dry-run
+./yewresin --dry-run      # Go 版本
+./yewresin.sh --dry-run   # Shell 版本
 
 # 执行备份（需确认）
+./yewresin
 ./yewresin.sh
 
 # 跳过确认直接执行（适用于 cron）
+./yewresin -y
 ./yewresin.sh -y
 ```
 
-### 4. 定时任务
+### 5. 定时任务
 > 按需配置，此处我们以每天北京时间凌晨三点运行为例（假设服务器使用 UTC 时区）
 ```bash
-(crontab -l 2>/dev/null; echo '0 19 * * * /path/to/yewresin.sh -y') | crontab -
+(crontab -l 2>/dev/null; echo '0 19 * * * /path/to/yewresin -y') | crontab -
 ```
 
 > **注意**：
@@ -103,11 +125,13 @@ EXPECTED_REMOTE=gdrive:backup
 
 ## 命令行参数
 
-| 参数 | 说明 |
-|------|------|
-| `--dry-run`, `-n` | 模拟运行，只检查依赖和显示操作，不实际执行 |
-| `-y`, `--yes` | 跳过交互式确认 |
-| `--help`, `-h` | 显示帮助信息 |
+| 参数 | 说明 | Shell | Go |
+|------|------|:-----:|:--:|
+| `--dry-run`, `-n` | 模拟运行，只检查依赖和显示操作，不实际执行 | ✓ | ✓ |
+| `-y`, `--yes` | 跳过交互式确认 | ✓ | ✓ |
+| `--help`, `-h` | 显示帮助信息 | ✓ | ✓ |
+| `--config <path>` | 指定配置文件路径 | - | ✓ |
+| `--version` | 显示版本信息 | - | ✓ |
 
 ## 环境变量
 
@@ -171,13 +195,17 @@ EXPECTED_REMOTE=gdrive:backup
 
 ## 开发说明
 
+项目包含两个版本的实现，核心逻辑一致。
+
+### Shell 版本
+
 脚本采用模块化结构，源代码位于 `src/` 目录，通过 Makefile 合并生成最终的 `yewresin.sh`。
 
-### 源码结构
+#### 源码结构
 
 ```
 YewResin/
-├── yewresin.sh              # 生成的脚本（由 make build 生成）
+├── yewresin.sh            # 生成的脚本（由 make build 生成）
 ├── Makefile               # 构建工具
 └── src/                   # 模块源文件
     ├── 00-header.sh       # shebang 和初始化
@@ -192,24 +220,73 @@ YewResin/
     └── 09-main.sh         # 主流程逻辑
 ```
 
-### 构建命令
+#### 构建命令
 
 ```bash
-# 合并模块生成 yewresin.sh
-make build
-
-# 删除生成的 yewresin.sh
-make clean
-
-# 查看帮助
-make help
+make build   # 合并模块生成 yewresin.sh
+make clean   # 删除生成的 yewresin.sh
+make help    # 查看帮助
 ```
 
-### 开发流程
+#### 开发流程
 
 1. 修改 `src/` 目录下的模块文件
 2. 运行 `make build` 重新生成 `yewresin.sh`
 3. 提交 `src/`、`Makefile` 和 `yewresin.sh`
+
+### Go 版本
+
+Go 版本位于 `go/` 目录，提供跨平台支持和并行处理能力。
+
+#### 源码结构
+
+```
+go/
+├── main.go           # 程序入口，CLI 参数解析
+├── orchestrator.go   # 备份流程编排器
+├── config.go         # 配置管理
+├── docker.go         # Docker Compose 服务管理
+├── backup.go         # Kopia 备份操作
+├── logger.go         # 日志系统
+├── gist.go           # GitHub Gist 日志上传
+├── notify.go         # Apprise 通知
+├── Makefile          # 交叉编译脚本
+└── dist/             # 编译产物目录
+```
+
+#### 构建命令
+
+```bash
+cd go
+make build     # 构建当前平台
+make all       # 构建所有平台 (linux/darwin/windows)
+make linux     # 仅构建 Linux (amd64, arm64)
+make darwin    # 仅构建 macOS (amd64, arm64)
+make windows   # 仅构建 Windows (amd64)
+make test      # 运行测试
+make clean     # 清理构建产物
+make help      # 查看帮助
+
+# 指定版本构建
+VERSION=v2.0.0 make all
+```
+
+#### 开发流程
+
+1. 修改 `go/` 目录下的源文件
+2. 运行 `make test` 确保测试通过
+3. 运行 `make build` 构建当前平台进行本地测试
+4. 提交代码
+
+### 版本号规则
+
+- **Shell 版本**：`v1.x.x` 标签
+- **Go 版本**：`v2.x.x` 标签
+
+两者共用 CI/CD 流程，通过主版本号区分：
+- `latest` 标签：包含两个版本的最新开发构建
+- `v1.*` 标签：触发 Shell 版本正式发布
+- `v2.*` 标签：触发 Go 版本正式发布
 
 ## 工作流程
 
