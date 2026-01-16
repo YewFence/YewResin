@@ -101,12 +101,7 @@ func (o *Orchestrator) Run() error {
 	// 8. 恢复服务（无论备份是否成功）
 	o.startAllServices()
 
-	// 9. 执行维护（可选）
-	if backupErr == nil {
-		o.kopia.Maintenance()
-	}
-
-	// 10. 上传日志到 Gist
+	// 9. 上传日志到 Gist
 	success := backupErr == nil
 	duration := time.Since(o.startTime)
 	if LogWriter != nil {
@@ -115,7 +110,7 @@ func (o *Orchestrator) Run() error {
 		}
 	}
 
-	// 11. 发送结果通知
+	// 10. 发送结果通知
 	if backupErr != nil {
 		o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
 		return backupErr

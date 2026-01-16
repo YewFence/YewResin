@@ -103,24 +103,3 @@ func (k *KopiaBackup) CreateSnapshot(path string) error {
 	slog.Info("快照创建成功")
 	return nil
 }
-
-// Maintenance 执行维护任务（可选）
-func (k *KopiaBackup) Maintenance() error {
-	if k.dryRun {
-		slog.Info("[DRY-RUN] 将执行维护任务")
-		return nil
-	}
-
-	slog.Info("执行 Kopia 维护...")
-
-	cmd := exec.Command("kopia", "maintenance", "run", "--full")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	// 维护失败不是致命错误
-	if err := cmd.Run(); err != nil {
-		slog.Warn("维护任务执行失败（非致命）", "error", err)
-	}
-
-	return nil
-}
