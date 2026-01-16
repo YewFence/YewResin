@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -14,6 +15,7 @@ type Notifier struct {
 	url        string // Apprise 服务地址
 	notifyURL  string // 通知目标 URL
 	deviceName string // 设备名称（可选）
+	wg         sync.WaitGroup
 }
 
 // NewNotifier 创建通知器
@@ -37,11 +39,14 @@ func (n *Notifier) Send(title, body string) {
 		title = fmt.Sprintf("[%s] %s", n.deviceName, title)
 	}
 
+	n.wg.Add(1)
 	go n.sendAsync(title, body)
 }
 
 // sendAsync 异步发送通知（不阻塞主流程）
 func (n *Notifier) sendAsync(title, body string) {
+	defer n.wg.Done()
+
 	payload := map[string]string{
 		"urls":  n.notifyURL,
 		"title": title,
@@ -68,4 +73,9 @@ func (n *Notifier) sendAsync(title, body string) {
 	}
 
 	slog.Debug("通知发送成功", "title", title)
+}
+
+// Wait 等待所有通知发送完成
+func (n *Notifier) Wait() {
+	n.wg.Wait()
 }

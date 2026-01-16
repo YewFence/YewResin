@@ -43,6 +43,7 @@ func NewOrchestrator(cfg *Config, dryRun bool) *Orchestrator {
 // Run 执行备份流程
 func (o *Orchestrator) Run() error {
 	o.startTime = time.Now()
+	defer o.notifier.Wait()
 
 	// 1. 检查依赖
 	if err := o.kopia.CheckDependencies(); err != nil {
@@ -161,6 +162,7 @@ func (o *Orchestrator) Cleanup() {
 	slog.Warn("执行清理，尝试恢复服务...")
 	o.startAllServices()
 	o.releaseLock()
+	o.notifier.Wait()
 }
 
 // acquireLock 获取锁（使用目录作为锁，原子操作）
