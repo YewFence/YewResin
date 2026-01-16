@@ -157,7 +157,7 @@ EXPECTED_REMOTE=gdrive:backup
 
 ### 目录结构要求
 
-```
+```text
 /opt/docker_file/           # BASE_DIR
 ├── caddy/                  # 网关服务
 │   ├── compose.yaml        # 支持多种命名格式
