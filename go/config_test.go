@@ -28,6 +28,11 @@ func TestGetEnvInt(t *testing.T) {
 	if got := getEnvInt("TEST_INT", 7); got != 42 {
 		t.Fatalf("expected 42, got %d", got)
 	}
+	// Test invalid input - should return default
+	t.Setenv("TEST_INT", "invalid")
+	if got := getEnvInt("TEST_INT", 7); got != 7 {
+		t.Fatalf("expected default 7 for invalid input, got %d", got)
+	}
 }
 
 func TestGetEnvBool(t *testing.T) {
