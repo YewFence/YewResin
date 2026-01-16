@@ -41,17 +41,21 @@ func main() {
 		os.Exit(0)
 	}
 
-	// 初始化日志
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
-
-	// 加载配置
+	// 加载配置（先加载配置以获取日志文件路径）
 	cfg, err := LoadConfig(*configFile)
 	if err != nil {
-		slog.Error("加载配置失败", "error", err)
+		fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
 		os.Exit(1)
+	}
+
+	// 初始化日志（支持文件输出）
+	logFile, err := InitLogger(cfg.LogFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
+		os.Exit(1)
+	}
+	if logFile != nil {
+		defer logFile.Close()
 	}
 
 	// 打印配置信息

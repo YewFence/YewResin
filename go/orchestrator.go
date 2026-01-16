@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
+	"time"
 )
 
 // Orchestrator 备份流程编排器
@@ -13,6 +15,7 @@ type Orchestrator struct {
 	docker   *DockerManager
 	kopia    *KopiaBackup
 	notifier *Notifier
+	gist     *GistManager
 
 	// 服务分类
 	priorityServices []*Service
@@ -20,6 +23,9 @@ type Orchestrator struct {
 
 	// 锁文件
 	lockAcquired bool
+
+	// 执行时间记录
+	startTime time.Time
 }
 
 // NewOrchestrator 创建编排器
@@ -30,11 +36,14 @@ func NewOrchestrator(cfg *Config, dryRun bool) *Orchestrator {
 		docker:   NewDockerManager(cfg.BaseDir, dryRun),
 		kopia:    NewKopiaBackup(cfg.ExpectedRemote, cfg.KopiaPassword, dryRun),
 		notifier: NewNotifier(cfg.AppriseURL, cfg.AppriseNotifyURL, cfg.DeviceName),
+		gist:     NewGistManager(cfg.GistToken, cfg.GistID, cfg.GistLogPrefix, cfg.GistMaxLogs, cfg.GistKeepFirstFile),
 	}
 }
 
 // Run 执行备份流程
 func (o *Orchestrator) Run() error {
+	o.startTime = time.Now()
+
 	// 1. 检查依赖
 	if err := o.kopia.CheckDependencies(); err != nil {
 		return err
@@ -66,16 +75,18 @@ func (o *Orchestrator) Run() error {
 	// 5. 发送开始通知
 	o.notifier.Send("🔄 备份开始", "开始执行服务器备份任务")
 
-	// 6. 停止服务（先普通后优先）
-	slog.Info(">>> 停止普通服务...")
-	for _, svc := range o.normalServices {
-		if err := o.docker.Stop(svc); err != nil {
-			o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务 %s 停止失败", svc.Name))
-			return fmt.Errorf("停止服务 %s 失败: %w", svc.Name, err)
+	// 6. 停止服务（普通服务并行，优先服务顺序）
+	slog.Info(">>> 并行停止普通服务...")
+	if errs := o.docker.StopParallel(o.normalServices); len(errs) > 0 {
+		errMsgs := make([]string, len(errs))
+		for i, e := range errs {
+			errMsgs[i] = e.Error()
 		}
+		o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务停止失败: %s", strings.Join(errMsgs, ", ")))
+		return fmt.Errorf("停止普通服务失败: %v", errs)
 	}
 
-	slog.Info(">>> 停止优先服务（网关）...")
+	slog.Info(">>> 顺序停止优先服务（网关）...")
 	for _, svc := range o.priorityServices {
 		if err := o.docker.Stop(svc); err != nil {
 			o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务 %s 停止失败", svc.Name))
@@ -95,7 +106,16 @@ func (o *Orchestrator) Run() error {
 		o.kopia.Maintenance()
 	}
 
-	// 10. 发送结果通知
+	// 10. 上传日志到 Gist
+	success := backupErr == nil
+	duration := time.Since(o.startTime)
+	if LogWriter != nil {
+		if err := o.gist.Upload(LogWriter.GetContent(), success, o.startTime, duration); err != nil {
+			slog.Warn("上传日志到 Gist 失败", "error", err)
+		}
+	}
+
+	// 11. 发送结果通知
 	if backupErr != nil {
 		o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
 		return backupErr
@@ -110,11 +130,12 @@ func (o *Orchestrator) Run() error {
 	return nil
 }
 
-// startAllServices 启动所有服务（先优先后普通）
+// startAllServices 启动所有服务（优先服务顺序启动，普通服务并行启动）
 func (o *Orchestrator) startAllServices() {
 	var failedServices []string
 
-	slog.Info(">>> 恢复优先服务（网关）...")
+	// 优先服务顺序启动（先恢复网关）
+	slog.Info(">>> 顺序恢复优先服务（网关）...")
 	for _, svc := range o.priorityServices {
 		if err := o.docker.Start(svc); err != nil {
 			slog.Error("启动服务失败", "service", svc.Name, "error", err)
@@ -122,11 +143,13 @@ func (o *Orchestrator) startAllServices() {
 		}
 	}
 
-	slog.Info(">>> 恢复普通服务...")
-	for _, svc := range o.normalServices {
-		if err := o.docker.Start(svc); err != nil {
-			slog.Error("启动服务失败", "service", svc.Name, "error", err)
-			failedServices = append(failedServices, svc.Name)
+	// 普通服务并行启动
+	slog.Info(">>> 并行恢复普通服务...")
+	if errs := o.docker.StartParallel(o.normalServices); len(errs) > 0 {
+		for _, err := range errs {
+			slog.Error("启动服务失败", "error", err)
+			// 从错误信息中提取服务名
+			failedServices = append(failedServices, err.Error())
 		}
 	}
 

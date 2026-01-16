@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // ComposeFileNames 支持的 compose 配置文件名
@@ -210,4 +211,56 @@ func ClassifyServices(services []*Service, priorityNames []string) (priority, no
 		}
 	}
 	return
+}
+
+// StopParallel 并行停止多个服务
+func (dm *DockerManager) StopParallel(services []*Service) []error {
+	if len(services) == 0 {
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errors []error
+
+	for _, svc := range services {
+		wg.Add(1)
+		go func(s *Service) {
+			defer wg.Done()
+			if err := dm.Stop(s); err != nil {
+				mu.Lock()
+				errors = append(errors, fmt.Errorf("%s: %w", s.Name, err))
+				mu.Unlock()
+			}
+		}(svc)
+	}
+
+	wg.Wait()
+	return errors
+}
+
+// StartParallel 并行启动多个服务
+func (dm *DockerManager) StartParallel(services []*Service) []error {
+	if len(services) == 0 {
+		return nil
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var errors []error
+
+	for _, svc := range services {
+		wg.Add(1)
+		go func(s *Service) {
+			defer wg.Done()
+			if err := dm.Start(s); err != nil {
+				mu.Lock()
+				errors = append(errors, fmt.Errorf("%s: %w", s.Name, err))
+				mu.Unlock()
+			}
+		}(svc)
+	}
+
+	wg.Wait()
+	return errors
 }
