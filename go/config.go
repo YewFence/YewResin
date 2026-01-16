@@ -41,6 +41,7 @@ type Config struct {
 
 // LoadConfig 从 .env 文件和环境变量加载配置
 func LoadConfig(configPath string) (*Config, error) {
+	originalPath := configPath
 	// 确定配置文件路径
 	if configPath == "" {
 		// 默认使用程序所在目录的 .env
@@ -52,7 +53,15 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	// 加载 .env 文件（如果存在）
-	if _, err := os.Stat(configPath); err == nil {
+	if _, err := os.Stat(configPath); err != nil {
+		if originalPath == "" && os.IsNotExist(err) {
+			// 默认路径不存在时允许继续
+		} else if originalPath == "" {
+			return nil, fmt.Errorf("检查配置文件失败: %w", err)
+		} else {
+			return nil, fmt.Errorf("配置文件不存在或不可访问: %w", err)
+		}
+	} else {
 		if err := godotenv.Load(configPath); err != nil {
 			return nil, fmt.Errorf("加载配置文件失败: %w", err)
 		}
