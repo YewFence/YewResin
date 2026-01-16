@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ComposeFileNames 支持的 compose 配置文件名
@@ -28,15 +30,20 @@ type Service struct {
 
 // DockerManager 管理 Docker Compose 服务
 type DockerManager struct {
-	baseDir string
-	dryRun  bool
+	baseDir        string
+	dryRun         bool
+	commandTimeout time.Duration
 }
 
 // NewDockerManager 创建 Docker 管理器
-func NewDockerManager(baseDir string, dryRun bool) *DockerManager {
+func NewDockerManager(baseDir string, dryRun bool, commandTimeout time.Duration) *DockerManager {
+	if commandTimeout <= 0 {
+		commandTimeout = 120 * time.Second
+	}
 	return &DockerManager{
-		baseDir: baseDir,
-		dryRun:  dryRun,
+		baseDir:        baseDir,
+		dryRun:         dryRun,
+		commandTimeout: commandTimeout,
 	}
 }
 
@@ -92,7 +99,9 @@ func (dm *DockerManager) hasComposeScript(path string) bool {
 // IsRunning 检查服务是否正在运行
 func (dm *DockerManager) IsRunning(svc *Service) bool {
 	// 在服务目录下执行 docker compose ps -q
-	cmd := exec.Command("docker", "compose", "ps", "-q")
+	ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "docker", "compose", "ps", "-q")
 	cmd.Dir = svc.Path
 
 	output, err := cmd.Output()
@@ -119,13 +128,19 @@ func (dm *DockerManager) Stop(svc *Service) error {
 	downScript := filepath.Join(svc.Path, "compose-down.sh")
 
 	if dm.isExecutable(stopScript) {
-		cmd = exec.Command("./compose-stop.sh")
+		ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, "./compose-stop.sh")
 		method = "compose-stop.sh"
 	} else if dm.isExecutable(downScript) {
-		cmd = exec.Command("./compose-down.sh")
+		ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, "./compose-down.sh")
 		method = "compose-down.sh"
 	} else if dm.hasComposeFile(svc.Path) {
-		cmd = exec.Command("docker", "compose", "stop")
+		ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, "docker", "compose", "stop")
 		method = "docker compose stop"
 	} else {
 		return fmt.Errorf("无法识别停止方法")
@@ -161,10 +176,14 @@ func (dm *DockerManager) Start(svc *Service) error {
 	upScript := filepath.Join(svc.Path, "compose-up.sh")
 
 	if dm.isExecutable(upScript) {
-		cmd = exec.Command("./compose-up.sh")
+		ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, "./compose-up.sh")
 		method = "compose-up.sh"
 	} else if dm.hasComposeFile(svc.Path) {
-		cmd = exec.Command("docker", "compose", "up", "-d")
+		ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
+		defer cancel()
+		cmd = exec.CommandContext(ctx, "docker", "compose", "up", "-d")
 		method = "docker compose up -d"
 	} else {
 		return fmt.Errorf("无法识别启动方法")
@@ -264,3 +283,7 @@ func (dm *DockerManager) StartParallel(services []*Service) []error {
 	wg.Wait()
 	return errors
 }
+
+
+
+

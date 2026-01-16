@@ -121,7 +121,7 @@ EXPECTED_REMOTE=gdrive:backup
 
 > **注意**：
 > - cron 使用系统时区，请先确认服务器时区（`timedatectl` 或 `date`），上述示例假设服务器为 UTC 时区
-> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 `yewresin.log`）
+> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 ``yewresin.log``）
 
 ## 命令行参数
 
@@ -143,6 +143,7 @@ EXPECTED_REMOTE=gdrive:backup
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
 | `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 |
+| `DOCKER_COMMAND_TIMEOUT_SECONDS` | `120` | Docker 命令超时时间（秒） |
 | `DEVICE_NAME` | - | 设备名称，用于区分不同服务器的通知 |
 | `APPRISE_URL` | - | Apprise 服务地址 |
 | `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
@@ -490,3 +491,6 @@ journalctl -u yewresin-backup.service -f
 ## License
 
 MIT
+
+
+

@@ -18,6 +18,7 @@ type Config struct {
 
 	// 服务管理
 	PriorityServices []string // 优先服务列表（最后停，最先启）
+	DockerCommandTimeoutSeconds int // Docker 命令超时时间（秒）
 
 	// 文件路径
 	LockFile string // 锁文件路径
@@ -75,6 +76,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		// 默认值
 		LockFile:      getEnvDefault("LOCK_FILE", "/tmp/backup_maintenance.lock"),
 		LogFile:       getEnvDefault("LOG_FILE", ""),
+		DockerCommandTimeoutSeconds: getEnvInt("DOCKER_COMMAND_TIMEOUT_SECONDS", 120),
 
 		// 通知
 		DeviceName:       os.Getenv("DEVICE_NAME"),
@@ -122,6 +124,7 @@ func (c *Config) Print() {
 	printField("BASE_DIR(工作目录)", c.BaseDir)
 	printField("EXPECTED_REMOTE(Kopia远程仓库)", c.ExpectedRemote)
 	printField("PRIORITY_SERVICES(优先服务)", strings.Join(c.PriorityServices, ", "))
+	printField("DOCKER_COMMAND_TIMEOUT_SECONDS(Docker超时秒)", fmt.Sprintf("%d", c.DockerCommandTimeoutSeconds))
 	printField("LOCK_FILE(锁文件路径)", c.LockFile)
 
 	if c.DeviceName != "" {
@@ -181,3 +184,4 @@ func maskString(s string) string {
 	}
 	return s[:8] + "..." + s[len(s)-4:]
 }
+

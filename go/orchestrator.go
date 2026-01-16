@@ -33,7 +33,7 @@ func NewOrchestrator(cfg *Config, dryRun bool) *Orchestrator {
 	return &Orchestrator{
 		cfg:      cfg,
 		dryRun:   dryRun,
-		docker:   NewDockerManager(cfg.BaseDir, dryRun),
+		docker:   NewDockerManager(cfg.BaseDir, dryRun, time.Duration(cfg.DockerCommandTimeoutSeconds)*time.Second),
 		kopia:    NewKopiaBackup(cfg.ExpectedRemote, cfg.KopiaPassword, dryRun),
 		notifier: NewNotifier(cfg.AppriseURL, cfg.AppriseNotifyURL, cfg.DeviceName),
 		gist:     NewGistManager(cfg.GistToken, cfg.GistID, cfg.GistLogPrefix, cfg.GistMaxLogs, cfg.GistKeepFirstFile),
@@ -191,10 +191,11 @@ func (o *Orchestrator) releaseLock() {
 		return
 	}
 
-	if err := os.Remove(o.cfg.LockFile); err != nil {
+	if err := os.RemoveAll(o.cfg.LockFile); err != nil {
 		slog.Warn("释放锁失败", "error", err)
 	} else {
 		slog.Info("释放锁成功")
 	}
 	o.lockAcquired = false
 }
+
