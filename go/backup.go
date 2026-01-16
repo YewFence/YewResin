@@ -55,15 +55,17 @@ func (k *KopiaBackup) CheckRepository() error {
 		return k.connectRepository()
 	}
 
-	// 检查远程路径是否匹配
+	// 检查远程路径是否匹配（确保两侧有引号）
 	outputStr := string(output)
-	if !strings.Contains(outputStr, k.expectedRemote) {
+	quotedExpected := `"` + k.expectedRemote + `"`
+	if !strings.Contains(outputStr, quotedExpected) {
 		return fmt.Errorf("Kopia 仓库路径不匹配，期望: %s", k.expectedRemote)
 	}
 
 	slog.Info("Kopia 仓库已连接", "remote", k.expectedRemote)
 	return nil
 }
+
 
 // connectRepository 连接 Kopia 仓库
 func (k *KopiaBackup) connectRepository() error {
