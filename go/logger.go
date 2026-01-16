@@ -4,6 +4,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 )
 
 // LogWriter 保存日志写入器的引用，用于获取日志内容
@@ -11,6 +12,7 @@ var LogWriter *LogCapture
 
 // LogCapture 捕获日志内容，同时写入多个目标
 type LogCapture struct {
+	mu      sync.Mutex
 	buffer  []byte
 	writers []io.Writer
 }
@@ -24,8 +26,10 @@ func NewLogCapture(writers ...io.Writer) *LogCapture {
 
 // Write 实现 io.Writer 接口
 func (lc *LogCapture) Write(p []byte) (n int, err error) {
+	lc.mu.Lock()
 	// 保存到缓冲区
 	lc.buffer = append(lc.buffer, p...)
+	lc.mu.Unlock()
 
 	// 写入所有目标
 	for _, w := range lc.writers {
@@ -36,7 +40,11 @@ func (lc *LogCapture) Write(p []byte) (n int, err error) {
 
 // GetContent 获取捕获的日志内容
 func (lc *LogCapture) GetContent() string {
-	return string(lc.buffer)
+	lc.mu.Lock()
+	buf := make([]byte, len(lc.buffer))
+	copy(buf, lc.buffer)
+	lc.mu.Unlock()
+	return string(buf)
 }
 
 // InitLogger 初始化日志系统

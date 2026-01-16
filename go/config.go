@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -146,15 +147,16 @@ func getEnvDefault(key, defaultVal string) string {
 
 func getEnvInt(key string, defaultVal int) int {
 	if val := os.Getenv(key); val != "" {
-		var i int
-		fmt.Sscanf(val, "%d", &i)
-		return i
+		if i, err := strconv.Atoi(val); err == nil {
+			return i
+		}
 	}
 	return defaultVal
 }
 
 func getEnvBool(key string, defaultVal bool) bool {
 	if val := os.Getenv(key); val != "" {
+		val = strings.ToLower(val)
 		return val == "true" || val == "1" || val == "yes"
 	}
 	return defaultVal

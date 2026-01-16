@@ -58,6 +58,7 @@ func (o *Orchestrator) Run() error {
 	if err := o.acquireLock(); err != nil {
 		return err
 	}
+	defer o.releaseLock()
 
 	// 4. 发现并分类服务
 	services, err := o.docker.DiscoverServices()
@@ -83,6 +84,7 @@ func (o *Orchestrator) Run() error {
 			errMsgs[i] = e.Error()
 		}
 		o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务停止失败: %s", strings.Join(errMsgs, ", ")))
+		o.startAllServices()
 		return fmt.Errorf("停止普通服务失败: %v", errs)
 	}
 
@@ -90,6 +92,7 @@ func (o *Orchestrator) Run() error {
 	for _, svc := range o.priorityServices {
 		if err := o.docker.Stop(svc); err != nil {
 			o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务 %s 停止失败", svc.Name))
+			o.startAllServices()
 			return fmt.Errorf("停止服务 %s 失败: %w", svc.Name, err)
 		}
 	}
