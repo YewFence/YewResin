@@ -1,12 +1,11 @@
 name: Build Artifact
 
 on:
-  push:
-    branches-ignore:
-      - main
   pull_request:
     branches:
       - main
+    paths:
+      - 'src/**'
 
 permissions:
   contents: read

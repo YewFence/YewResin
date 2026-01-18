@@ -1,11 +1,6 @@
 name: Go Build Artifact
 
 on:
-  push:
-    branches-ignore:
-      - main
-    paths:
-      - 'go/**'
   pull_request:
     branches:
       - main
