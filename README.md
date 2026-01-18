@@ -121,7 +121,7 @@ EXPECTED_REMOTE=gdrive:backup
 
 > **注意**：
 > - cron 使用系统时区，请先确认服务器时区（`timedatectl` 或 `date`），上述示例假设服务器为 UTC 时区
-> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 ``yewresin.log``）
+> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 `yewresin.log`）
 
 ## 命令行参数
 
