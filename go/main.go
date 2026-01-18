@@ -75,6 +75,12 @@ func main() {
 		os.Exit(1)
 	}()
 
+	// 检查依赖
+	if err := orch.CheckDependencies(); err != nil {
+		slog.Error("依赖检查失败", "error", err)
+		os.Exit(1)
+	}
+
 	// 交互式确认
 	if !*dryRun && !*autoConfirm {
 		if !confirm() {

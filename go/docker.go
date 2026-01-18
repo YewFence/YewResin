@@ -62,6 +62,15 @@ func NewDockerManager(baseDir string, dryRun bool, commandTimeout time.Duration)
 	}
 }
 
+func (dm *DockerManager) CheckDependencies() error {
+	// 检查 docker 命令
+	if _, err := exec.LookPath("docker"); err != nil {
+		return fmt.Errorf("docker 未安装或不可用，请先安装: https://docs.docker.com/get-docker/")
+	}
+	slog.Info("依赖检查通过", "docker", "✓")
+	return nil
+}
+
 // DiscoverServices 发现所有 Docker Compose 服务
 func (dm *DockerManager) DiscoverServices() ([]*Service, error) {
 	entries, err := os.ReadDir(dm.baseDir)

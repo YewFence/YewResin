@@ -41,28 +41,33 @@ func NewOrchestrator(cfg *Config, dryRun bool) *Orchestrator {
 	}
 }
 
+// 检查依赖项
+func (o *Orchestrator) CheckDependencies() error {
+	// 检查 Docker 可用性
+	if err := o.docker.CheckDependencies(); err != nil {
+		return err
+	}
+
+	// 检查 Kopia 仓库连接状态
+	if err := o.kopia.CheckRepository(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Run 执行备份流程
 func (o *Orchestrator) Run() error {
 	o.startTime = time.Now()
 	defer o.notifier.Wait()
 
-	// 1. 检查依赖
-	if err := o.kopia.CheckDependencies(); err != nil {
-		return err
-	}
-
-	// 2. 检查 Kopia 仓库连接
-	if err := o.kopia.CheckRepository(); err != nil {
-		return err
-	}
-
-	// 3. 获取锁
+	// 1. 获取锁
 	if err := o.acquireLock(); err != nil {
 		return err
 	}
 	defer o.releaseLock()
 
-	// 4. 发现并分类服务
+	// 2. 发现并分类服务
 	services, err := o.docker.DiscoverServices()
 	if err != nil {
 		return fmt.Errorf("发现服务失败: %w", err)
@@ -75,10 +80,10 @@ func (o *Orchestrator) Run() error {
 		"priority", len(o.priorityServices),
 		"normal", len(o.normalServices))
 
-	// 5. 发送开始通知
+	// 3. 发送开始通知
 	o.notifier.Send("🔄 备份开始", "开始执行服务器备份任务")
 
-	// 6. 停止服务（普通服务并行，优先服务顺序）
+	// 4. 停止服务（普通服务并行，优先服务顺序）
 	slog.Info(">>> 并行停止普通服务...")
 	if errs := o.docker.StopParallel(o.normalServices); len(errs) > 0 {
 		errMsgs := make([]string, len(errs))
@@ -99,14 +104,14 @@ func (o *Orchestrator) Run() error {
 		}
 	}
 
-	// 7. 创建快照
+	// 5. 创建快照
 	slog.Info(">>> 所有服务已停止，开始创建快照...")
 	backupErr := o.kopia.CreateSnapshot(o.cfg.BaseDir)
 
-	// 8. 恢复服务（无论备份是否成功）
+	// 6. 恢复服务（无论备份是否成功）
 	o.startAllServices()
 
-	// 9. 上传日志到 Gist
+	// 7. 上传日志到 Gist
 	success := backupErr == nil
 	duration := time.Since(o.startTime)
 	if LogWriter != nil {
@@ -115,7 +120,7 @@ func (o *Orchestrator) Run() error {
 		}
 	}
 
-	// 10. 发送结果通知
+	// 8. 发送结果通知
 	if backupErr != nil {
 		o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
 		return backupErr
