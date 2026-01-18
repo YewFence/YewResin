@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -217,6 +218,9 @@ func (dm *DockerManager) isExecutable(path string) bool {
 	if err != nil {
 		return false
 	}
+	if runtime.GOOS == "windows" {
+		return !info.IsDir() && strings.EqualFold(filepath.Ext(path), ".sh")
+	}
 	// 在 Unix 系统上检查执行权限
 	return info.Mode()&0111 != 0
 }
@@ -289,7 +293,3 @@ func (dm *DockerManager) StartParallel(services []*Service) []error {
 	wg.Wait()
 	return errors
 }
-
-
-
-
