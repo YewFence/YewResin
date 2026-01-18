@@ -90,7 +90,7 @@ func main() {
 	}
 
 	// 执行备份
-	startTime := time.Now()
+	startTime := time.Now().UTC()
 	if err := orch.Run(); err != nil {
 		slog.Error("备份失败", "error", err)
 		os.Exit(1)

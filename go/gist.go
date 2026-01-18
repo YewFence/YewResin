@@ -82,7 +82,7 @@ YewResin Docker 备份日志
 ========================================
 %s
 `, statusText, startTime.Format("2006-01-02 15:04:05"), durationStr,
-		time.Now().Format("2006-01-02 15:04:05"), logContent)
+		time.Now().UTC().Format("2006-01-02 15:04:05"), logContent)
 
 	// 构建请求 payload
 	payload := map[string]interface{}{

@@ -81,7 +81,7 @@ func (o *Orchestrator) CheckDependencies() error {
 
 // Run 执行备份流程
 func (o *Orchestrator) Run() error {
-	o.startTime = time.Now()
+	o.startTime = time.Now().UTC()
 	defer o.notifier.Wait()
 
 	// 1. 获取锁
