@@ -13,20 +13,20 @@ import (
 // Config 应用配置
 type Config struct {
 	// 必填配置
-	BaseDir        string   // Docker Compose 项目总目录
-	ExpectedRemote string   // Kopia 远程路径
+	BaseDir        string // Docker Compose 项目总目录
+	ExpectedRemote string // Kopia 远程路径
 
 	// 服务管理
-	PriorityServices []string // 优先服务列表（最后停，最先启）
-	DockerCommandTimeoutSeconds int // Docker 命令超时时间（秒）
+	PriorityServices            []string // 优先服务列表（最后停，最先启）
+	DockerCommandTimeoutSeconds int      // Docker 命令超时时间（秒）
 
 	// 文件路径
 	LockFile string // 锁文件路径
 	LogFile  string // 日志文件路径
 
 	// 通知配置
-	DeviceName      string // 设备名称（用于通知标题）
-	AppriseURL      string // Apprise 服务地址
+	DeviceName       string // 设备名称（用于通知标题）
+	AppriseURL       string // Apprise 服务地址
 	AppriseNotifyURL string // 通知目标 URL
 
 	// Gist 配置
@@ -74,8 +74,8 @@ func LoadConfig(configPath string) (*Config, error) {
 		ExpectedRemote: os.Getenv("EXPECTED_REMOTE"),
 
 		// 默认值
-		LockFile:      getEnvDefault("LOCK_FILE", "/tmp/backup_maintenance.lock"),
-		LogFile:       getEnvDefault("LOG_FILE", ""),
+		LockFile:                    getEnvDefault("LOCK_FILE", "/tmp/backup_maintenance.lock"),
+		LogFile:                     getEnvDefault("LOG_FILE", ""),
 		DockerCommandTimeoutSeconds: getEnvInt("DOCKER_COMMAND_TIMEOUT_SECONDS", 120),
 
 		// 通知
@@ -88,7 +88,7 @@ func LoadConfig(configPath string) (*Config, error) {
 		GistID:            os.Getenv("GIST_ID"),
 		GistLogPrefix:     getEnvDefault("GIST_LOG_PREFIX", "yewresin-backup"),
 		GistMaxLogs:       getEnvInt("GIST_MAX_LOGS", 30),
-		GistKeepFirstFile: getEnvBool("GIST_KEEP_FIRST_FILE", false),
+		GistKeepFirstFile: getEnvBool("GIST_KEEP_FIRST_FILE", true),
 
 		// Kopia
 		KopiaPassword: os.Getenv("KOPIA_PASSWORD"),
@@ -184,4 +184,3 @@ func maskString(s string) string {
 	}
 	return s[:8] + "..." + s[len(s)-4:]
 }
-
