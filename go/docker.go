@@ -73,6 +73,8 @@ func (dm *DockerManager) DiscoverServices() ([]*Service, error) {
 			}
 			svc.Running = running
 			services = append(services, svc)
+		} else {
+			slog.Info("跳过目录（未发现 compose 配置/脚本）", "service", entry.Name(), "path", svcPath)
 		}
 	}
 
