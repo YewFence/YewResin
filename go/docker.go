@@ -67,7 +67,11 @@ func (dm *DockerManager) DiscoverServices() ([]*Service, error) {
 				Path: svcPath,
 			}
 			// 检查服务是否正在运行
-			svc.Running = dm.IsRunning(svc)
+			running, err := dm.IsRunning(svc)
+			if err != nil {
+				return nil, fmt.Errorf("检查服务运行状态失败 for %s: %w", svc.Name, err)
+			}
+			svc.Running = running
 			services = append(services, svc)
 		}
 	}
@@ -97,7 +101,7 @@ func (dm *DockerManager) hasComposeScript(path string) bool {
 }
 
 // IsRunning 检查服务是否正在运行
-func (dm *DockerManager) IsRunning(svc *Service) bool {
+func (dm *DockerManager) IsRunning(svc *Service) (bool, error) {
 	// 在服务目录下执行 docker compose ps -q
 	ctx, cancel := context.WithTimeout(context.Background(), dm.commandTimeout)
 	defer cancel()
@@ -106,11 +110,11 @@ func (dm *DockerManager) IsRunning(svc *Service) bool {
 
 	output, err := cmd.Output()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("执行 docker compose ps 失败: %w", err)
 	}
 
 	// 如果有输出（容器 ID），说明有容器在运行
-	return len(bytes.TrimSpace(output)) > 0
+	return len(bytes.TrimSpace(output)) > 0, nil
 }
 
 // Stop 停止服务
