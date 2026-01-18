@@ -47,11 +47,15 @@ jobs:
         working-directory: go
         run: make ${{ inputs.platform || 'all' }}
 
+      - name: Prepare artifact root
+        run: |
+          mkdir -p artifacts
+          cp go/dist/* artifacts/
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: yewresin-go-${{ github.sha }}
           path: |
-            go/dist/*
-            .env.example
+            artifacts/*
           retention-days: 7
