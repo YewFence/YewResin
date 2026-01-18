@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -147,8 +148,13 @@ func (o *Orchestrator) startAllServices() {
 	if errs := o.docker.StartParallel(o.normalServices); len(errs) > 0 {
 		for _, err := range errs {
 			slog.Error("启动服务失败", "error", err)
-			// 从错误信息中提取服务名
-			failedServices = append(failedServices, err.Error())
+			// 从结构化错误中提取服务名
+			var svcErr *ServiceError
+			if errors.As(err, &svcErr) {
+				failedServices = append(failedServices, svcErr.Service)
+			} else {
+				failedServices = append(failedServices, "unknown")
+			}
 		}
 	}
 
@@ -198,4 +204,3 @@ func (o *Orchestrator) releaseLock() {
 	}
 	o.lockAcquired = false
 }
-

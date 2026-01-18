@@ -29,6 +29,20 @@ type Service struct {
 	Running bool   // 是否正在运行（备份前的状态）
 }
 
+// ServiceError 标记具体服务的错误
+type ServiceError struct {
+	Service string
+	Err     error
+}
+
+func (e *ServiceError) Error() string {
+	return fmt.Sprintf("%s: %v", e.Service, e.Err)
+}
+
+func (e *ServiceError) Unwrap() error {
+	return e.Err
+}
+
 // DockerManager 管理 Docker Compose 服务
 type DockerManager struct {
 	baseDir        string
@@ -258,7 +272,7 @@ func (dm *DockerManager) StopParallel(services []*Service) []error {
 			defer wg.Done()
 			if err := dm.Stop(s); err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("%s: %w", s.Name, err))
+				errors = append(errors, &ServiceError{Service: s.Name, Err: err})
 				mu.Unlock()
 			}
 		}(svc)
@@ -284,7 +298,7 @@ func (dm *DockerManager) StartParallel(services []*Service) []error {
 			defer wg.Done()
 			if err := dm.Start(s); err != nil {
 				mu.Lock()
-				errors = append(errors, fmt.Errorf("%s: %w", s.Name, err))
+				errors = append(errors, &ServiceError{Service: s.Name, Err: err})
 				mu.Unlock()
 			}
 		}(svc)
