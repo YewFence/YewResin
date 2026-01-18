@@ -3,7 +3,7 @@ name: Production Release
 on:
   push:
     tags:
-      - "v*"
+      - "v1*"
 
 permissions:
   contents: write
