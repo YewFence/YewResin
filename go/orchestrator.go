@@ -13,10 +13,10 @@ import (
 type Orchestrator struct {
 	cfg      *Config
 	dryRun   bool
-	docker   *DockerManager
-	kopia    *KopiaBackup
-	notifier *Notifier
-	gist     *GistManager
+	docker   dockerController
+	kopia    kopiaController
+	notifier notifierClient
+	gist     gistClient
 
 	// 服务分类
 	priorityServices []*Service
@@ -27,6 +27,29 @@ type Orchestrator struct {
 
 	// 执行时间记录
 	startTime time.Time
+}
+
+type dockerController interface {
+	CheckDependencies() error
+	DiscoverServices() ([]*Service, error)
+	StopParallel(services []*Service) []error
+	Stop(svc *Service) error
+	StartParallel(services []*Service) []error
+	Start(svc *Service) error
+}
+
+type kopiaController interface {
+	CheckRepository() error
+	CreateSnapshot(path string) error
+}
+
+type notifierClient interface {
+	Send(title, body string)
+	Wait()
+}
+
+type gistClient interface {
+	Upload(logContent string, success bool, startTime time.Time, duration time.Duration) error
 }
 
 // NewOrchestrator 创建编排器
