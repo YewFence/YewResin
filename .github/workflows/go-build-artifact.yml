@@ -12,6 +12,16 @@ on:
         description: '要构建的分支或标签'
         required: true
         default: 'main'
+      platform:
+        description: '选择构建平台'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - linux
+          - darwin
+          - windows
 
 permissions:
   contents: read
@@ -33,9 +43,9 @@ jobs:
         working-directory: go
         run: go test -v ./...
 
-      - name: Build all platforms
+      - name: Build selected platform
         working-directory: go
-        run: make all
+        run: make ${{ inputs.platform || 'all' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
