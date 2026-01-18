@@ -135,24 +135,24 @@ EXPECTED_REMOTE=gdrive:backup
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `BASE_DIR` | - | Docker Compose 项目目录 |
-| `EXPECTED_REMOTE` | - | Kopia 远程路径 |
-| `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 |
-| `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
-| `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
-| `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 |
-| `DOCKER_COMMAND_TIMEOUT_SECONDS` | `120` | Docker 命令超时时间（秒） |
-| `DEVICE_NAME` | - | 设备名称，用于区分不同服务器的通知 |
-| `APPRISE_URL` | - | Apprise 服务地址 |
-| `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
-| `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限）|
-| `GIST_ID` | - | GitHub Gist ID（日志上传目标）|
-| `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 |
-| `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）|
-| `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）|
-| `CONFIG_FILE` | `./yewresin.sh` 同目录的 `.env` | 配置文件路径 |
+| 变量 | 默认值 | 说明 | Shell | Go |
+|------|--------|------|:-----:|:--:|
+| `BASE_DIR` | - | Docker Compose 项目目录 | ✓ | ✓ |
+| `EXPECTED_REMOTE` | - | Kopia 远程路径 | ✓ | ✓ |
+| `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 | ✓ | ✓ |
+| `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） | ✓ | ✓ |
+| `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 | ✓ | ✓ |
+| `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 | ✓ | ✓ |
+| `DOCKER_COMMAND_TIMEOUT_SECONDS` | `120` | Docker 命令超时时间（秒） | - | ✓ |
+| `DEVICE_NAME` | - | 设备名称，用于区分不同服务器的通知 | ✓ | ✓ |
+| `APPRISE_URL` | - | Apprise 服务地址 | ✓ | ✓ |
+| `APPRISE_NOTIFY_URL` | - | 通知目标 URL | ✓ | ✓ |
+| `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限）| ✓ | ✓ |
+| `GIST_ID` | - | GitHub Gist ID（日志上传目标）| ✓ | ✓ |
+| `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 | ✓ | ✓ |
+| `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）| ✓ | ✓ |
+| `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）| ✓ | ✓ |
+| `CONFIG_FILE` | `./yewresin.sh` 同目录的 `.env` | 配置文件路径 | ✓ | ✓ |
 
 ## 关键要求
 
@@ -491,6 +491,3 @@ journalctl -u yewresin-backup.service -f
 ## License
 
 MIT
-
-
-
