@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/exec"
-	"strings"
 )
 
 // KopiaBackup Kopia 备份管理器
@@ -43,7 +43,7 @@ func (k *KopiaBackup) CheckDependencies() error {
 // CheckRepository 检查 Kopia 仓库连接状态
 func (k *KopiaBackup) CheckRepository() error {
 	// 先检查仓库状态
-	cmd := exec.Command("kopia", "repository", "status")
+	cmd := exec.Command("kopia", "repository", "status", "--json")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -55,10 +55,24 @@ func (k *KopiaBackup) CheckRepository() error {
 		return k.connectRepository()
 	}
 
-	// 检查远程路径是否匹配（确保两侧有引号）
-	outputStr := string(output)
-	quotedExpected := `"` + k.expectedRemote + `"`
-	if !strings.Contains(outputStr, quotedExpected) {
+	var status struct {
+		Storage struct {
+			Type   string `json:"type"`
+			Config struct {
+				RemotePath string `json:"remotePath"`
+			} `json:"config"`
+		} `json:"storage"`
+	}
+
+	if err := json.Unmarshal(output, &status); err != nil {
+		return fmt.Errorf("解析 Kopia 仓库状态失败: %w", err)
+	}
+
+	if status.Storage.Config.RemotePath == "" {
+		return fmt.Errorf("Kopia 仓库状态缺少 remotePath")
+	}
+
+	if status.Storage.Config.RemotePath != k.expectedRemote {
 		return fmt.Errorf("Kopia 仓库路径不匹配，期望: %s", k.expectedRemote)
 	}
 
