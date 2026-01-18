@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -110,5 +111,5 @@ func confirm() bool {
 
 	var response string
 	fmt.Scanln(&response)
-	return response == "y" || response == "Y" || response == "yes" || response == "YES"
+	return strings.EqualFold(response, "y") || strings.EqualFold(response, "yes")
 }
