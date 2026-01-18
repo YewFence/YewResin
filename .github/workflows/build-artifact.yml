@@ -6,6 +6,12 @@ on:
       - main
     paths:
       - 'src/**'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: '要构建的分支或标签'
+        required: true
+        default: 'main'
 
 permissions:
   contents: read
@@ -15,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
+        with:
+          ref: ${{ inputs.ref || github.ref }}
       - name: Run make
         run: |
           make
