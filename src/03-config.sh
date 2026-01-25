@@ -23,6 +23,14 @@ if [ -z "$EXPECTED_REMOTE" ]; then
     log "[错误] 必须设置 EXPECTED_REMOTE 环境变量，指定 Kopia 远程仓库路径。脚本将退出。" >&2
     exit 1
 fi
+# Kopia 配置文件路径（可选，用于以其他用户身份运行时指定配置）
+KOPIA_CONFIG_FILE="${KOPIA_CONFIG_FILE:-}"
+# Rclone 配置文件路径（可选，rclone 原生支持此环境变量）
+# 如果设置了，会自动导出为环境变量供 kopia 调用 rclone 时使用
+RCLONE_CONFIG="${RCLONE_CONFIG:-}"
+if [ -n "$RCLONE_CONFIG" ]; then
+    export RCLONE_CONFIG
+fi
 # 定义你的网关服务文件夹名称 (最后关，最先开)
 # 通过 PRIORITY_SERVICES_LIST 环境变量设置，用空格分隔
 if [ -n "$PRIORITY_SERVICES_LIST" ]; then
@@ -74,6 +82,13 @@ print_config() {
         printf "$fmt" "GIST_TOKEN(Gist Token):" "******(已配置)"
     else
         printf "$fmt" "GIST 日志上传:" "(未配置)"
+    fi
+    # Kopia/Rclone 配置文件路径
+    if [ -n "$KOPIA_CONFIG_FILE" ]; then
+        printf "$fmt" "KOPIA_CONFIG_FILE(Kopia配置文件):" "$KOPIA_CONFIG_FILE"
+    fi
+    if [ -n "$RCLONE_CONFIG" ]; then
+        printf "$fmt" "RCLONE_CONFIG(Rclone配置文件):" "$RCLONE_CONFIG"
     fi
     # 脱敏处理 KOPIA_PASSWORD
     if [ -n "$KOPIA_PASSWORD" ]; then
