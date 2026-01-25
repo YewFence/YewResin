@@ -12,14 +12,18 @@ import (
 type KopiaBackup struct {
 	expectedRemote string
 	password       string
+	configFile     string // Kopia 配置文件路径
+	rcloneConfig   string // Rclone 配置文件路径
 	dryRun         bool
 }
 
 // NewKopiaBackup 创建 Kopia 备份管理器
-func NewKopiaBackup(expectedRemote, password string, dryRun bool) *KopiaBackup {
+func NewKopiaBackup(expectedRemote, password, configFile, rcloneConfig string, dryRun bool) *KopiaBackup {
 	return &KopiaBackup{
 		expectedRemote: expectedRemote,
 		password:       password,
+		configFile:     configFile,
+		rcloneConfig:   rcloneConfig,
 		dryRun:         dryRun,
 	}
 }
@@ -40,10 +44,29 @@ func (k *KopiaBackup) CheckDependencies() error {
 	return nil
 }
 
+// buildKopiaArgs 构建 kopia 命令参数（包含可选的 --config-file）
+func (k *KopiaBackup) buildKopiaArgs(args ...string) []string {
+	if k.configFile != "" {
+		return append([]string{"--config-file=" + k.configFile}, args...)
+	}
+	return args
+}
+
+// buildEnv 构建子进程环境变量（包含 RCLONE_CONFIG）
+func (k *KopiaBackup) buildEnv() []string {
+	env := os.Environ()
+	if k.rcloneConfig != "" {
+		env = append(env, "RCLONE_CONFIG="+k.rcloneConfig)
+	}
+	return env
+}
+
 // CheckRepository 检查 Kopia 仓库连接状态
 func (k *KopiaBackup) CheckRepository() error {
 	// 先检查仓库状态
-	cmd := exec.Command("kopia", "repository", "status", "--json")
+	args := k.buildKopiaArgs("repository", "status", "--json")
+	cmd := exec.Command("kopia", args...)
+	cmd.Env = k.buildEnv()
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -80,14 +103,16 @@ func (k *KopiaBackup) CheckRepository() error {
 	return nil
 }
 
-
 // connectRepository 连接 Kopia 仓库
 func (k *KopiaBackup) connectRepository() error {
-	cmd := exec.Command("kopia", "repository", "connect", "rclone",
+	args := k.buildKopiaArgs("repository", "connect", "rclone",
 		"--remote-path="+k.expectedRemote)
+	cmd := exec.Command("kopia", args...)
 
-	// 设置密码环境变量
-	cmd.Env = append(os.Environ(), "KOPIA_PASSWORD="+k.password)
+	// 设置环境变量（包含密码和 rclone 配置）
+	env := k.buildEnv()
+	env = append(env, "KOPIA_PASSWORD="+k.password)
+	cmd.Env = env
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -108,7 +133,9 @@ func (k *KopiaBackup) CreateSnapshot(path string) error {
 
 	slog.Info("开始创建快照", "path", path)
 
-	cmd := exec.Command("kopia", "snapshot", "create", path)
+	args := k.buildKopiaArgs("snapshot", "create", path)
+	cmd := exec.Command("kopia", args...)
+	cmd.Env = k.buildEnv()
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
