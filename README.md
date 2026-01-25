@@ -140,6 +140,8 @@ EXPECTED_REMOTE=gdrive:backup
 | `BASE_DIR` | - | Docker Compose 项目目录 | ✓ | ✓ |
 | `EXPECTED_REMOTE` | - | Kopia 远程路径 | ✓ | ✓ |
 | `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 | ✓ | ✓ |
+| `KOPIA_CONFIG_FILE` | - | Kopia 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
+| `RCLONE_CONFIG` | - | Rclone 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） | ✓ | ✓ |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 | ✓ | ✓ |
 | `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 | ✓ | ✓ |
