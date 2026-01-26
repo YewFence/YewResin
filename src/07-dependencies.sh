@@ -1,10 +1,19 @@
 
 # ================= 依赖检查 =================
 
-# 构建 kopia 命令（支持自定义配置文件路径）
-build_kopia_cmd() {
+# 执行 kopia 命令（支持自定义配置文件路径，正确处理空格）
+run_kopia() {
     if [ -n "$KOPIA_CONFIG_FILE" ]; then
-        echo "kopia --config-file=$KOPIA_CONFIG_FILE"
+        kopia --config-file="$KOPIA_CONFIG_FILE" "$@"
+    else
+        kopia "$@"
+    fi
+}
+
+# 获取 kopia 命令显示字符串（仅用于日志输出）
+get_kopia_cmd_display() {
+    if [ -n "$KOPIA_CONFIG_FILE" ]; then
+        echo "kopia --config-file=\"$KOPIA_CONFIG_FILE\""
     else
         echo "kopia"
     fi
@@ -13,8 +22,6 @@ build_kopia_cmd() {
 check_dependencies() {
     local has_error=false
     local error_msg=""
-    local kopia_cmd
-    kopia_cmd=$(build_kopia_cmd)
 
     # 检查 rclone
     if ! command -v rclone &>/dev/null; then
@@ -44,6 +51,18 @@ check_dependencies() {
         exit 1
     fi
 
+    # 检查自定义配置文件是否存在
+    if [ -n "$KOPIA_CONFIG_FILE" ] && [ ! -f "$KOPIA_CONFIG_FILE" ]; then
+        echo "[错误] 指定的 Kopia 配置文件不存在: $KOPIA_CONFIG_FILE"
+        error_msg+="Kopia 配置文件不存在; "
+        has_error=true
+    fi
+    if [ -n "$RCLONE_CONFIG" ] && [ ! -f "$RCLONE_CONFIG" ]; then
+        echo "[错误] 指定的 Rclone 配置文件不存在: $RCLONE_CONFIG"
+        error_msg+="Rclone 配置文件不存在; "
+        has_error=true
+    fi
+
     # 如果基础依赖检查失败，直接退出
     if [ "$has_error" = true ]; then
         echo ""
@@ -55,7 +74,7 @@ check_dependencies() {
     # 检查 Kopia 仓库连接状态并尝试连接
     echo "[检查] Kopia 仓库 $EXPECTED_REMOTE 连接状态..."
     local repo_status
-    repo_status=$($kopia_cmd repository status 2>&1)
+    repo_status=$(run_kopia repository status 2>&1)
 
     if echo "$repo_status" | grep -q "\"remotePath\": \"$EXPECTED_REMOTE\""; then
         echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"
@@ -63,7 +82,7 @@ check_dependencies() {
         echo "[警告] Kopia 仓库未连接或连接到错误的远程路径"
         if [ -n "$KOPIA_PASSWORD" ]; then
             echo "[尝试] 使用已配置的 KOPIA_PASSWORD 尝试重新连接仓库 ..."
-            if ! $kopia_cmd repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
+            if ! run_kopia repository connect rclone --remote-path="$EXPECTED_REMOTE" --password="$KOPIA_PASSWORD"; then
                 echo "[错误] 无法连接到 Kopia 仓库 $EXPECTED_REMOTE"
                 echo "       请检查 rclone 配置和网络连接"
                 echo "       文档: https://kopia.io/docs/installation/"

@@ -12,19 +12,27 @@ import (
 type KopiaBackup struct {
 	expectedRemote string
 	password       string
-	configFile     string // Kopia 配置文件路径
-	rcloneConfig   string // Rclone 配置文件路径
+	configFile     string   // Kopia 配置文件路径
+	rcloneConfig   string   // Rclone 配置文件路径
 	dryRun         bool
+	cachedEnv      []string // 缓存的环境变量
 }
 
 // NewKopiaBackup 创建 Kopia 备份管理器
 func NewKopiaBackup(expectedRemote, password, configFile, rcloneConfig string, dryRun bool) *KopiaBackup {
+	// 初始化时构建并缓存环境变量
+	env := os.Environ()
+	if rcloneConfig != "" {
+		env = append(env, "RCLONE_CONFIG="+rcloneConfig)
+	}
+
 	return &KopiaBackup{
 		expectedRemote: expectedRemote,
 		password:       password,
 		configFile:     configFile,
 		rcloneConfig:   rcloneConfig,
 		dryRun:         dryRun,
+		cachedEnv:      env,
 	}
 }
 
@@ -40,6 +48,18 @@ func (k *KopiaBackup) CheckDependencies() error {
 		return fmt.Errorf("rclone 未安装，请先安装: https://rclone.org/downloads/")
 	}
 
+	// 检查自定义配置文件是否存在
+	if k.configFile != "" {
+		if _, err := os.Stat(k.configFile); os.IsNotExist(err) {
+			return fmt.Errorf("指定的 Kopia 配置文件不存在: %s", k.configFile)
+		}
+	}
+	if k.rcloneConfig != "" {
+		if _, err := os.Stat(k.rcloneConfig); os.IsNotExist(err) {
+			return fmt.Errorf("指定的 Rclone 配置文件不存在: %s", k.rcloneConfig)
+		}
+	}
+
 	slog.Info("依赖检查通过", "kopia", "✓", "rclone", "✓")
 	return nil
 }
@@ -52,13 +72,9 @@ func (k *KopiaBackup) buildKopiaArgs(args ...string) []string {
 	return args
 }
 
-// buildEnv 构建子进程环境变量（包含 RCLONE_CONFIG）
+// buildEnv 返回缓存的环境变量（包含 RCLONE_CONFIG）
 func (k *KopiaBackup) buildEnv() []string {
-	env := os.Environ()
-	if k.rcloneConfig != "" {
-		env = append(env, "RCLONE_CONFIG="+k.rcloneConfig)
-	}
-	return env
+	return k.cachedEnv
 }
 
 // CheckRepository 检查 Kopia 仓库连接状态

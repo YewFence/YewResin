@@ -72,16 +72,13 @@ stop_all_services
 # 4. 执行 Kopia 备份
 log ">>> 服务已全部停止，准备执行 Kopia 快照..."
 
-# 4.1 构建 kopia 命令
-kopia_cmd=$(build_kopia_cmd)
-
-# 4.2 执行快照
+# 4.1 执行快照
 backup_success=true
 if [ "$DRY_RUN" = true ]; then
-    log "[DRY-RUN] 将执行: $kopia_cmd snapshot create $BASE_DIR"
+    log "[DRY-RUN] 将执行: $(get_kopia_cmd_display) snapshot create $BASE_DIR"
 else
     log "开始创建快照..."
-    if ! $kopia_cmd snapshot create "$BASE_DIR"; then
+    if ! run_kopia snapshot create "$BASE_DIR"; then
         log "!!! 警告：备份过程中出现错误 !!!"
         backup_success=false
         send_notification "❌ 备份失败" "Kopia 快照创建失败"
