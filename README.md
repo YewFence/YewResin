@@ -1,6 +1,6 @@
 # YewResin - Docker 服务备份工具
 
-一个自动化的 Docker Compose 服务备份工具，使用 Kopia + rclone 实现本地快照与云端同步。
+一个自动化的 Docker Compose 服务备份工具，使用 Kopia 实现本地快照与云端同步。
 
 提供两个版本：
 - **Shell 版本** (`v1.x`) - 轻量级 Bash 脚本，适合简单部署
@@ -23,16 +23,16 @@
 
 ## 依赖
 
-- [rclone](https://rclone.org/downloads/) - 云存储同步工具
 - [Kopia](https://kopia.io/docs/installation/) - 快照备份工具
 - Docker & Docker Compose
+- 可选：[rclone](https://rclone.org/downloads/) - 云存储同步工具
 
 ## 快速开始
 
 ### 1. 安装依赖
 
 ```bash
-# 安装 rclone
+# 安装 rclone（按需）
 curl https://rclone.org/install.sh | sudo bash
 rclone config  # 配置远程存储（如 Google Drive）
 
@@ -140,6 +140,8 @@ EXPECTED_REMOTE=gdrive:backup
 | `BASE_DIR` | - | Docker Compose 项目目录 | ✓ | ✓ |
 | `EXPECTED_REMOTE` | - | Kopia 远程路径 | ✓ | ✓ |
 | `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 | ✓ | ✓ |
+| `KOPIA_CONFIG_FILE` | - | Kopia 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
+| `RCLONE_CONFIG` | - | Rclone 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
 | `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） | ✓ | ✓ |
 | `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 | ✓ | ✓ |
 | `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 | ✓ | ✓ |
@@ -390,7 +392,7 @@ brew install jq
 
 这样清理时会自动跳过这个标题文件，只清理日志文件。
 
-你可以通过 `https://gist.github.com/your_username/GIST_ID` 访问查看所有日志。Gist 会按文件名自动排序，最新的备份日志在最上面。
+你可以通过 `https://gist.github.com/your_username/GIST_ID` 访问查看所有日志。Gist 会按文件名自动排序，由于日期是递增的，最新的备份日志在最下面。
 
 ## 定时任务配置
 

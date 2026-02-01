@@ -37,7 +37,8 @@ type Config struct {
 	GistKeepFirstFile bool   // 清理时保留第一个文件
 
 	// Kopia
-	KopiaPassword string // Kopia 仓库密码
+	KopiaConfigFile string // Kopia 配置文件路径
+	RcloneConfig    string // Rclone 配置文件路径
 }
 
 // LoadConfig 从 .env 文件和环境变量加载配置
@@ -91,7 +92,8 @@ func LoadConfig(configPath string) (*Config, error) {
 		GistKeepFirstFile: getEnvBool("GIST_KEEP_FIRST_FILE", true),
 
 		// Kopia
-		KopiaPassword: os.Getenv("KOPIA_PASSWORD"),
+		KopiaConfigFile: os.Getenv("KOPIA_CONFIG_FILE"),
+		RcloneConfig:    os.Getenv("RCLONE_CONFIG"),
 	}
 
 	// 解析优先服务列表
@@ -136,8 +138,11 @@ func (c *Config) Print() {
 		printField("GIST_TOKEN", "******(已配置)")
 	}
 
-	if c.KopiaPassword != "" {
-		printField("KOPIA_PASSWORD", "******(已配置)")
+	if c.KopiaConfigFile != "" {
+		printField("KOPIA_CONFIG_FILE(Kopia配置文件)", c.KopiaConfigFile)
+	}
+	if c.RcloneConfig != "" {
+		printField("RCLONE_CONFIG(Rclone配置文件)", c.RcloneConfig)
 	}
 
 	if c.AppriseURL != "" {

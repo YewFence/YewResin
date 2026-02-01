@@ -214,6 +214,7 @@ stop_all_services() {
 # 清理函数：确保异常退出时也能恢复服务
 cleanup() {
     local exit_code=$?
+    set +e  # 禁用错误退出，确保清理逻辑完整执行
     if [ "$exit_code" -ne 0 ]; then
         log "!!! 脚本异常退出，尝试恢复所有服务..."
         send_notification "❌ 备份异常" "脚本异常退出 (exit code: $exit_code)，正在尝试恢复服务..."

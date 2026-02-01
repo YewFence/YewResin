@@ -58,7 +58,7 @@ func NewOrchestrator(cfg *Config, dryRun bool) *Orchestrator {
 		cfg:      cfg,
 		dryRun:   dryRun,
 		docker:   NewDockerManager(cfg.BaseDir, dryRun, time.Duration(cfg.DockerCommandTimeoutSeconds)*time.Second),
-		kopia:    NewKopiaBackup(cfg.ExpectedRemote, cfg.KopiaPassword, dryRun),
+		kopia:    NewKopiaBackup(cfg.ExpectedRemote, cfg.KopiaConfigFile, cfg.RcloneConfig, dryRun),
 		notifier: NewNotifier(cfg.AppriseURL, cfg.AppriseNotifyURL, cfg.DeviceName),
 		gist:     NewGistManager(cfg.GistToken, cfg.GistID, cfg.GistLogPrefix, cfg.GistMaxLogs, cfg.GistKeepFirstFile),
 	}
