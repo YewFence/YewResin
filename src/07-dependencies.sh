@@ -60,7 +60,7 @@ check_dependencies() {
     # 检查 Kopia 仓库连接状态
     echo "[检查] Kopia 仓库 $EXPECTED_REMOTE 连接状态..."
     local repo_status
-    repo_status=$(run_kopia repository status 2>&1)
+    repo_status=$(run_kopia repository status --json 2>&1)
 
     if echo "$repo_status" | grep -q "\"remotePath\": \"$EXPECTED_REMOTE\""; then
         echo "[✓] Kopia 仓库已正确连接到 $EXPECTED_REMOTE"

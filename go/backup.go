@@ -11,8 +11,8 @@ import (
 // KopiaBackup Kopia 备份管理器
 type KopiaBackup struct {
 	expectedRemote string
-	configFile     string   // Kopia 配置文件路径
-	rcloneConfig   string   // Rclone 配置文件路径
+	configFile     string // Kopia 配置文件路径
+	rcloneConfig   string // Rclone 配置文件路径
 	dryRun         bool
 	cachedEnv      []string // 缓存的环境变量
 }
@@ -43,13 +43,16 @@ func (k *KopiaBackup) CheckDependencies() error {
 
 	// 检查自定义配置文件是否存在
 	if k.configFile != "" {
-		if _, err := os.Stat(k.configFile); os.IsNotExist(err) {
-			return fmt.Errorf("指定的 Kopia 配置文件不存在: %s", k.configFile)
+		if _, err := os.Stat(k.configFile); err != nil {
+			return fmt.Errorf("指定的 Kopia 配置文件不可访问: %w", err)
 		}
 	}
 	if k.rcloneConfig != "" {
-		if _, err := os.Stat(k.rcloneConfig); os.IsNotExist(err) {
-			return fmt.Errorf("指定的 Rclone 配置文件不存在: %s", k.rcloneConfig)
+		if _, err := exec.LookPath("rclone"); err != nil {
+			return fmt.Errorf("rclone 未安装，请先安装")
+		}
+		if _, err := os.Stat(k.rcloneConfig); err != nil {
+			return fmt.Errorf("指定的 Rclone 配置文件不可访问: %w", err)
 		}
 	}
 
@@ -79,7 +82,14 @@ func (k *KopiaBackup) CheckRepository() error {
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		return fmt.Errorf("Kopia 仓库未连接，请手动执行 'kopia repository connect' 连接仓库")
+		hint := "kopia repository connect"
+		if k.configFile != "" {
+			hint = "kopia --config-file=" + k.configFile + " repository connect"
+		}
+		if k.rcloneConfig != "" {
+			hint = "RCLONE_CONFIG=" + k.rcloneConfig + " " + hint
+		}
+		return fmt.Errorf("Kopia 仓库未连接，请手动执行 '%s' 连接仓库", hint)
 	}
 
 	var status struct {
