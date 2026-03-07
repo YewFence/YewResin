@@ -45,6 +45,9 @@ func hasConfigFlag(args []string) bool {
 }
 
 func prepareConfigCommandArgs(globalArgs, subcommandArgs []string) []string {
+	if len(subcommandArgs) == 0 {
+		return subcommandArgs
+	}
 	if hasConfigFlag(subcommandArgs) {
 		return subcommandArgs
 	}
@@ -52,7 +55,10 @@ func prepareConfigCommandArgs(globalArgs, subcommandArgs []string) []string {
 	if !ok {
 		return subcommandArgs
 	}
-	return append([]string{"--config", configValue}, subcommandArgs...)
+	args := make([]string, 0, len(subcommandArgs)+2)
+	args = append(args, subcommandArgs[0], "--config", configValue)
+	args = append(args, subcommandArgs[1:]...)
+	return args
 }
 
 func findCommand(args []string) (int, string) {

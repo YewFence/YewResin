@@ -62,9 +62,16 @@ func TestFindCommandAfterGlobalConfigFlag(t *testing.T) {
 
 func TestPrepareConfigCommandArgsForwardsGlobalConfig(t *testing.T) {
 	got := prepareConfigCommandArgs([]string{"--config", "custom.env"}, []string{"list"})
-	want := []string{"--config", "custom.env", "list"}
+	want := []string{"list", "--config", "custom.env"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
+func TestPrepareConfigCommandArgsHandlesEmptySubcommand(t *testing.T) {
+	got := prepareConfigCommandArgs([]string{"--config", "custom.env"}, nil)
+	if got != nil {
+		t.Fatalf("expected nil args, got %v", got)
 	}
 }
 
