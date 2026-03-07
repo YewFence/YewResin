@@ -83,7 +83,11 @@ func detectConfigFiles(configPath string) ([]ConfigFileEntry, error) {
 			return nil, fmt.Errorf("读取 .env 文件失败 %s: %w", envPath, readErr)
 		}
 		envValues = vals
-	} else if !os.IsNotExist(statErr) {
+	} else if os.IsNotExist(statErr) {
+		if configPath != "" {
+			return nil, fmt.Errorf("配置文件不存在或不可访问: %w", statErr)
+		}
+	} else {
 		return nil, fmt.Errorf("检查 .env 文件失败 %s: %w", envPath, statErr)
 	}
 
@@ -435,6 +439,106 @@ func writeFileAtomic(path string, data []byte) error {
 	return nil
 }
 
+func defaultExportOutputPath(now time.Time) string {
+	return fmt.Sprintf("yewresin-config-%s.age", now.Format("20060102-150405"))
+}
+
+func openExportOutputFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+}
+
+type restoreBackup struct {
+	path    string
+	existed bool
+	data    []byte
+	mode    os.FileMode
+}
+
+func validateImportPlanData(importPlan []ImportPlanEntry, fileContents map[string][]byte) error {
+	for _, f := range importPlan {
+		if _, ok := fileContents[f.ArchiveName]; !ok {
+			return fmt.Errorf("归档不完整，缺少 %s 的数据", f.ArchiveName)
+		}
+	}
+	return nil
+}
+
+func rollbackImportedFiles(backups []restoreBackup) error {
+	var errs []string
+	for i := len(backups) - 1; i >= 0; i-- {
+		backup := backups[i]
+		if backup.existed {
+			if err := writeFileAtomic(backup.path, backup.data); err != nil {
+				errs = append(errs, fmt.Sprintf("恢复 %s 失败: %v", backup.path, err))
+				continue
+			}
+			if err := os.Chmod(backup.path, backup.mode); err != nil {
+				errs = append(errs, fmt.Sprintf("恢复 %s 权限失败: %v", backup.path, err))
+			}
+			continue
+		}
+		if err := os.Remove(backup.path); err != nil && !os.IsNotExist(err) {
+			errs = append(errs, fmt.Sprintf("删除 %s 失败: %v", backup.path, err))
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("回滚失败: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func restoreWithRollback(backups []restoreBackup, format string, args ...any) error {
+	restoreErr := fmt.Errorf(format, args...)
+	rollbackErr := rollbackImportedFiles(backups)
+	if rollbackErr != nil {
+		return fmt.Errorf("%v；%v", restoreErr, rollbackErr)
+	}
+	if len(backups) > 0 {
+		return fmt.Errorf("%v，已回滚先前写入的文件", restoreErr)
+	}
+	return restoreErr
+}
+
+func restoreImportPlan(importPlan []ImportPlanEntry, fileContents map[string][]byte, output io.Writer) (int, error) {
+	if err := validateImportPlanData(importPlan, fileContents); err != nil {
+		return 0, err
+	}
+
+	backups := make([]restoreBackup, 0, len(importPlan))
+	restored := 0
+
+	for _, f := range importPlan {
+		backup := restoreBackup{path: f.TargetPath}
+		if info, err := os.Stat(f.TargetPath); err == nil {
+			backup.existed = true
+			backup.mode = info.Mode().Perm()
+			backup.data, err = os.ReadFile(f.TargetPath)
+			if err != nil {
+				return restored, restoreWithRollback(backups, "读取现有文件 %s 失败: %w", f.TargetPath, err)
+			}
+		} else if !os.IsNotExist(err) {
+			return restored, restoreWithRollback(backups, "检查目标文件 %s 失败: %w", f.TargetPath, err)
+		}
+
+		dir := filepath.Dir(f.TargetPath)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return restored, restoreWithRollback(backups, "创建目录 %s 失败: %w", dir, err)
+		}
+
+		if err := writeFileAtomic(f.TargetPath, fileContents[f.ArchiveName]); err != nil {
+			return restored, restoreWithRollback(backups, "写入 %s 失败: %w", f.TargetPath, err)
+		}
+
+		backups = append(backups, backup)
+		restored++
+		if output != nil {
+			fmt.Fprintf(output, "  已还原: %s -> %s\n", f.Description, f.TargetPath)
+		}
+	}
+
+	return restored, nil
+}
+
 // =================== CLI 子命令 ===================
 
 func printConfigUsage() {
@@ -505,7 +609,7 @@ func runConfigList(args []string) {
 
 func runConfigExport(args []string) {
 	fs := flag.NewFlagSet("config export", flag.ExitOnError)
-	outputFile := fs.String("output", "", "输出文件路径（默认: yewresin-config-YYYYMMDD.age）")
+	outputFile := fs.String("output", "", "输出文件路径（默认: yewresin-config-YYYYMMDD-HHMMSS.age）")
 	fs.StringVar(outputFile, "o", "", "输出文件路径（简写）")
 	configFile := fs.String("config", "", "配置文件路径")
 	fs.Parse(args)
@@ -561,11 +665,11 @@ func runConfigExport(args []string) {
 
 	// 确定输出路径
 	if *outputFile == "" {
-		*outputFile = fmt.Sprintf("yewresin-config-%s.age", time.Now().Format("20060102"))
+		*outputFile = defaultExportOutputPath(time.Now())
 	}
 
 	// 加密并写入
-	outFile, err := os.Create(*outputFile)
+	outFile, err := openExportOutputFile(*outputFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "创建输出文件失败: %v\n", err)
 		os.Exit(1)
@@ -573,6 +677,7 @@ func runConfigExport(args []string) {
 	defer outFile.Close()
 
 	if err := encryptWithAge(passphrase, tarBuf, outFile); err != nil {
+		_ = outFile.Close()
 		os.Remove(*outputFile) // 清理不完整的文件
 		fmt.Fprintf(os.Stderr, "加密失败: %v\n", err)
 		os.Exit(1)
@@ -631,6 +736,10 @@ func runConfigImport(args []string) {
 		fmt.Fprintf(os.Stderr, "生成导入计划失败: %v\n", err)
 		os.Exit(1)
 	}
+	if err := validateImportPlanData(importPlan, fileContents); err != nil {
+		fmt.Fprintf(os.Stderr, "导入失败: %v\n", err)
+		os.Exit(1)
+	}
 
 	// 展示归档信息
 	fmt.Printf("\n归档信息: YewResin %s, 创建于 %s\n", manifest.YewResinVersion, manifest.CreatedAt)
@@ -666,27 +775,10 @@ func runConfigImport(args []string) {
 
 	// 写入文件
 	fmt.Println()
-	restored := 0
-	for _, f := range importPlan {
-		data, ok := fileContents[f.ArchiveName]
-		if !ok {
-			fmt.Printf("  跳过: %s（归档中无数据）\n", f.Description)
-			continue
-		}
-
-		// 创建父目录
-		dir := filepath.Dir(f.TargetPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "  失败: 创建目录 %s: %v\n", dir, err)
-			continue
-		}
-
-		if err := writeFileAtomic(f.TargetPath, data); err != nil {
-			fmt.Fprintf(os.Stderr, "  失败: 写入 %s: %v\n", f.TargetPath, err)
-			continue
-		}
-		fmt.Printf("  已还原: %s -> %s\n", f.Description, f.TargetPath)
-		restored++
+	restored, err := restoreImportPlan(importPlan, fileContents, os.Stdout)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "导入失败: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Printf("\n导入完成: %d/%d 个文件已还原\n", restored, len(importPlan))
