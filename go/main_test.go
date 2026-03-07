@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -50,4 +51,27 @@ func TestConfirm(t *testing.T) {
 			t.Fatalf("expected confirm to reject n")
 		}
 	})
+}
+
+func TestFindCommandAfterGlobalConfigFlag(t *testing.T) {
+	index, command := findCommand([]string{"--config", "custom.env", "config", "list"})
+	if index != 2 || command != "config" {
+		t.Fatalf("expected command config at index 2, got %q at %d", command, index)
+	}
+}
+
+func TestPrepareConfigCommandArgsForwardsGlobalConfig(t *testing.T) {
+	got := prepareConfigCommandArgs([]string{"--config", "custom.env"}, []string{"list"})
+	want := []string{"--config", "custom.env", "list"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
+}
+
+func TestPrepareConfigCommandArgsKeepsSubcommandConfig(t *testing.T) {
+	got := prepareConfigCommandArgs([]string{"--config", "global.env"}, []string{"list", "--config", "local.env"})
+	want := []string{"list", "--config", "local.env"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("expected %v, got %v", want, got)
+	}
 }

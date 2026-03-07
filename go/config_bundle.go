@@ -23,8 +23,8 @@ import (
 type ConfigFileEntry struct {
 	ArchiveName  string `json:"archive_name"`  // 归档内文件名
 	OriginalPath string `json:"original_path"` // 原始绝对路径
-	Source       string `json:"source"`         // 路径来源说明
-	Description  string `json:"description"`    // 文件描述
+	Source       string `json:"source"`        // 路径来源说明
+	Description  string `json:"description"`   // 文件描述
 }
 
 // Manifest 归档元数据，作为 tar 的第一个条目存储
@@ -37,20 +37,34 @@ type Manifest struct {
 
 // =================== 路径探测 ===================
 
-func defaultRcloneConfigPath() string {
+func defaultRcloneConfigPath() (string, error) {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("APPDATA"), "rclone", "rclone.conf")
+		appData := os.Getenv("APPDATA")
+		if appData == "" {
+			return "", fmt.Errorf("APPDATA 未设置")
+		}
+		return filepath.Join(appData, "rclone", "rclone.conf"), nil
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "rclone", "rclone.conf")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("获取用户主目录失败: %w", err)
+	}
+	return filepath.Join(home, ".config", "rclone", "rclone.conf"), nil
 }
 
-func defaultKopiaConfigPath() string {
+func defaultKopiaConfigPath() (string, error) {
 	if runtime.GOOS == "windows" {
-		return filepath.Join(os.Getenv("LOCALAPPDATA"), "kopia", "repository.config")
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			return "", fmt.Errorf("LOCALAPPDATA 未设置")
+		}
+		return filepath.Join(localAppData, "kopia", "repository.config"), nil
 	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "kopia", "repository.config")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("获取用户主目录失败: %w", err)
+	}
+	return filepath.Join(home, ".config", "kopia", "repository.config"), nil
 }
 
 // detectConfigFiles 探测所有可导出的配置文件
@@ -64,9 +78,13 @@ func detectConfigFiles(configPath string) ([]ConfigFileEntry, error) {
 	// 用 godotenv.Read 读取 .env 值，不会污染当前进程环境变量
 	envValues := make(map[string]string)
 	if _, statErr := os.Stat(envPath); statErr == nil {
-		if vals, readErr := godotenv.Read(envPath); readErr == nil {
-			envValues = vals
+		vals, readErr := godotenv.Read(envPath)
+		if readErr != nil {
+			return nil, fmt.Errorf("读取 .env 文件失败 %s: %w", envPath, readErr)
 		}
+		envValues = vals
+	} else if !os.IsNotExist(statErr) {
+		return nil, fmt.Errorf("检查 .env 文件失败 %s: %w", envPath, statErr)
 	}
 
 	// 辅助函数：环境变量优先，其次 .env 中的值
@@ -105,7 +123,10 @@ func detectConfigFiles(configPath string) ([]ConfigFileEntry, error) {
 	rclonePath := getVal("RCLONE_CONFIG")
 	rcloneSource := sourceLabel("RCLONE_CONFIG", "默认路径")
 	if rclonePath == "" {
-		rclonePath = defaultRcloneConfigPath()
+		rclonePath, err = defaultRcloneConfigPath()
+		if err != nil {
+			return nil, err
+		}
 		rcloneSource = "默认路径"
 	}
 	files = append(files, ConfigFileEntry{
@@ -119,7 +140,10 @@ func detectConfigFiles(configPath string) ([]ConfigFileEntry, error) {
 	kopiaPath := getVal("KOPIA_CONFIG_FILE")
 	kopiaSource := sourceLabel("KOPIA_CONFIG_FILE", "默认路径")
 	if kopiaPath == "" {
-		kopiaPath = defaultKopiaConfigPath()
+		kopiaPath, err = defaultKopiaConfigPath()
+		if err != nil {
+			return nil, err
+		}
 		kopiaSource = "默认路径"
 	}
 	files = append(files, ConfigFileEntry{
@@ -311,6 +335,106 @@ func humanSize(bytes int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
+type ImportPlanEntry struct {
+	ArchiveName string
+	Description string
+	SourcePath  string
+	TargetPath  string
+}
+
+func detectConfigFileMap(configPath string) (map[string]ConfigFileEntry, error) {
+	files, err := detectConfigFiles(configPath)
+	if err != nil {
+		return nil, err
+	}
+	fileMap := make(map[string]ConfigFileEntry, len(files))
+	for _, file := range files {
+		fileMap[file.ArchiveName] = file
+	}
+	return fileMap, nil
+}
+
+func resolveImportPlan(manifest *Manifest, configPath string) ([]ImportPlanEntry, error) {
+	targets, err := detectConfigFileMap(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	seen := make(map[string]struct{}, len(manifest.Files))
+	plan := make([]ImportPlanEntry, 0, len(manifest.Files))
+	for _, file := range manifest.Files {
+		if file.ArchiveName == "" {
+			return nil, fmt.Errorf("manifest 包含空的归档文件名")
+		}
+		if _, exists := seen[file.ArchiveName]; exists {
+			return nil, fmt.Errorf("manifest 中包含重复条目: %s", file.ArchiveName)
+		}
+		seen[file.ArchiveName] = struct{}{}
+
+		target, ok := targets[file.ArchiveName]
+		if !ok {
+			return nil, fmt.Errorf("manifest 包含不受支持的配置文件: %s", file.ArchiveName)
+		}
+
+		targetPath := filepath.Clean(target.OriginalPath)
+		if targetPath == "." || targetPath == "" {
+			return nil, fmt.Errorf("无法确定 %s 的目标路径", target.Description)
+		}
+
+		plan = append(plan, ImportPlanEntry{
+			ArchiveName: target.ArchiveName,
+			Description: target.Description,
+			SourcePath:  file.OriginalPath,
+			TargetPath:  targetPath,
+		})
+	}
+
+	return plan, nil
+}
+
+func writeFileAtomic(path string, data []byte) error {
+	dir := filepath.Dir(path)
+	tmpFile, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return fmt.Errorf("创建临时文件失败: %w", err)
+	}
+
+	tmpPath := tmpFile.Name()
+	cleanup := true
+	defer func() {
+		if cleanup {
+			tmpFile.Close()
+			os.Remove(tmpPath)
+		}
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		return fmt.Errorf("写入临时文件失败: %w", err)
+	}
+	if err := tmpFile.Sync(); err != nil {
+		return fmt.Errorf("同步临时文件失败: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("关闭临时文件失败: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0600); err != nil {
+		return fmt.Errorf("设置临时文件权限失败: %w", err)
+	}
+
+	if runtime.GOOS == "windows" {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("替换目标文件失败: %w", err)
+		}
+	}
+
+	if err := os.Rename(tmpPath, path); err != nil {
+		return fmt.Errorf("重命名临时文件失败: %w", err)
+	}
+
+	cleanup = false
+	return nil
+}
+
 // =================== CLI 子命令 ===================
 
 func printConfigUsage() {
@@ -322,9 +446,12 @@ func printConfigUsage() {
 }
 
 func runConfigCmd(args []string) {
-	if len(args) == 0 {
+	if len(args) == 0 || isHelpFlag(args[0]) {
 		printConfigUsage()
-		os.Exit(1)
+		if len(args) == 0 {
+			os.Exit(1)
+		}
+		return
 	}
 
 	switch args[0] {
@@ -458,6 +585,7 @@ func runConfigImport(args []string) {
 	fs := flag.NewFlagSet("config import", flag.ExitOnError)
 	force := fs.Bool("force", false, "强制覆盖已存在的文件")
 	fs.BoolVar(force, "f", false, "强制覆盖（简写）")
+	configFile := fs.String("config", "", "目标配置文件路径")
 	fs.Parse(args)
 
 	// 验证输入文件
@@ -498,14 +626,20 @@ func runConfigImport(args []string) {
 		os.Exit(1)
 	}
 
+	importPlan, err := resolveImportPlan(manifest, *configFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "生成导入计划失败: %v\n", err)
+		os.Exit(1)
+	}
+
 	// 展示归档信息
 	fmt.Printf("\n归档信息: YewResin %s, 创建于 %s\n", manifest.YewResinVersion, manifest.CreatedAt)
 	fmt.Println("\n将还原以下文件:")
 
-	var conflicts []ConfigFileEntry
-	for _, f := range manifest.Files {
+	var conflicts []ImportPlanEntry
+	for _, f := range importPlan {
 		exists := false
-		if _, statErr := os.Stat(f.OriginalPath); statErr == nil {
+		if _, statErr := os.Stat(f.TargetPath); statErr == nil {
 			exists = true
 			conflicts = append(conflicts, f)
 		}
@@ -513,7 +647,10 @@ func runConfigImport(args []string) {
 		if exists {
 			status = "（已存在，将覆盖）"
 		}
-		fmt.Printf("  %-35s -> %s %s\n", f.Description, f.OriginalPath, status)
+		fmt.Printf("  %-35s -> %s %s\n", f.Description, f.TargetPath, status)
+		if f.SourcePath != "" && filepath.Clean(f.SourcePath) != f.TargetPath {
+			fmt.Printf("    归档原路径: %s\n", f.SourcePath)
+		}
 	}
 
 	// 确认覆盖
@@ -530,7 +667,7 @@ func runConfigImport(args []string) {
 	// 写入文件
 	fmt.Println()
 	restored := 0
-	for _, f := range manifest.Files {
+	for _, f := range importPlan {
 		data, ok := fileContents[f.ArchiveName]
 		if !ok {
 			fmt.Printf("  跳过: %s（归档中无数据）\n", f.Description)
@@ -538,20 +675,19 @@ func runConfigImport(args []string) {
 		}
 
 		// 创建父目录
-		dir := filepath.Dir(f.OriginalPath)
+		dir := filepath.Dir(f.TargetPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			fmt.Fprintf(os.Stderr, "  失败: 创建目录 %s: %v\n", dir, err)
 			continue
 		}
 
-		// 写入文件（0600 权限，保护敏感信息）
-		if err := os.WriteFile(f.OriginalPath, data, 0600); err != nil {
-			fmt.Fprintf(os.Stderr, "  失败: 写入 %s: %v\n", f.OriginalPath, err)
+		if err := writeFileAtomic(f.TargetPath, data); err != nil {
+			fmt.Fprintf(os.Stderr, "  失败: 写入 %s: %v\n", f.TargetPath, err)
 			continue
 		}
-		fmt.Printf("  已还原: %s -> %s\n", f.Description, f.OriginalPath)
+		fmt.Printf("  已还原: %s -> %s\n", f.Description, f.TargetPath)
 		restored++
 	}
 
-	fmt.Printf("\n导入完成: %d/%d 个文件已还原\n", restored, len(manifest.Files))
+	fmt.Printf("\n导入完成: %d/%d 个文件已还原\n", restored, len(importPlan))
 }

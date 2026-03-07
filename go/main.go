@@ -14,24 +14,87 @@ import (
 // 版本信息，构建时注入
 var version = "dev"
 
+func isVersionFlag(arg string) bool {
+	return arg == "--version" || arg == "-version"
+}
+
+func isHelpFlag(arg string) bool {
+	return arg == "--help" || arg == "-help" || arg == "-h"
+}
+
+func extractConfigValue(args []string) (string, bool) {
+	for i := 0; i < len(args); i++ {
+		switch {
+		case args[i] == "--config" || args[i] == "-config":
+			if i+1 >= len(args) {
+				return "", false
+			}
+			return args[i+1], true
+		case strings.HasPrefix(args[i], "--config="):
+			return strings.TrimPrefix(args[i], "--config="), true
+		case strings.HasPrefix(args[i], "-config="):
+			return strings.TrimPrefix(args[i], "-config="), true
+		}
+	}
+	return "", false
+}
+
+func hasConfigFlag(args []string) bool {
+	_, ok := extractConfigValue(args)
+	return ok
+}
+
+func prepareConfigCommandArgs(globalArgs, subcommandArgs []string) []string {
+	if hasConfigFlag(subcommandArgs) {
+		return subcommandArgs
+	}
+	configValue, ok := extractConfigValue(globalArgs)
+	if !ok {
+		return subcommandArgs
+	}
+	return append([]string{"--config", configValue}, subcommandArgs...)
+}
+
+func findCommand(args []string) (int, string) {
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "--":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				return i + 1, args[i+1]
+			}
+			return -1, ""
+		case arg == "--config" || arg == "-config":
+			i++
+		case strings.HasPrefix(arg, "--config=") || strings.HasPrefix(arg, "-config="):
+		case arg == "--dry-run" || arg == "-n" || arg == "--yes" || arg == "-y":
+		case isVersionFlag(arg) || isHelpFlag(arg):
+		case strings.HasPrefix(arg, "-"):
+			return -1, ""
+		default:
+			return i, arg
+		}
+	}
+	return -1, ""
+}
+
 func main() {
 	// --version 全局处理（兼容有无子命令的情况）
 	if len(os.Args) > 1 {
 		for _, arg := range os.Args[1:] {
-			if arg == "--version" || arg == "-version" {
+			if isVersionFlag(arg) {
 				fmt.Printf("YewResin %s\n", version)
 				os.Exit(0)
 			}
 		}
 
-		// 子命令分发：第一个参数不是 flag 时视为子命令
-		if !strings.HasPrefix(os.Args[1], "-") {
-			switch os.Args[1] {
+		if commandIndex, command := findCommand(os.Args[1:]); commandIndex >= 0 {
+			switch command {
 			case "config":
-				runConfigCmd(os.Args[2:])
+				runConfigCmd(prepareConfigCommandArgs(os.Args[1:1+commandIndex], os.Args[2+commandIndex:]))
 				return
 			default:
-				fmt.Fprintf(os.Stderr, "未知命令: %s\n运行 '%s --help' 查看用法\n", os.Args[1], os.Args[0])
+				fmt.Fprintf(os.Stderr, "未知命令: %s\n运行 '%s --help' 查看用法\n", command, os.Args[0])
 				os.Exit(1)
 			}
 		}

@@ -601,7 +601,7 @@ kopia snapshot list
 
 输出示例：
 
-```
+```text
 user@hostname:/opt/docker_file
   2025-12-20 03:00:15 UTC k1a2b3c4d5e6f7 102.6 MB
   2025-12-21 03:00:12 UTC k8a9b0c1d2e3f4 103.1 MB (+0.5 MB)
