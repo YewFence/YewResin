@@ -132,6 +132,9 @@ EXPECTED_REMOTE=gdrive:backup
 | `--help`, `-h` | 显示帮助信息 | ✓ | ✓ |
 | `--config <path>` | 指定配置文件路径 | - | ✓ |
 | `--version` | 显示版本信息 | - | ✓ |
+| `config list` | 列出可导出的配置文件 | - | ✓ |
+| `config export` | 导出配置文件（age 加密归档） | - | ✓ |
+| `config import` | 导入配置文件（解密还原） | - | ✓ |
 
 ## 环境变量
 
@@ -245,16 +248,17 @@ Go 版本位于 `go/` 目录，提供跨平台支持和并行处理能力。
 
 ```
 go/
-├── main.go           # 程序入口，CLI 参数解析
-├── orchestrator.go   # 备份流程编排器
-├── config.go         # 配置管理
-├── docker.go         # Docker Compose 服务管理
-├── backup.go         # Kopia 备份操作
-├── logger.go         # 日志系统
-├── gist.go           # GitHub Gist 日志上传
-├── notify.go         # Apprise 通知
-├── Makefile          # 交叉编译脚本
-└── dist/             # 编译产物目录
+├── main.go            # 程序入口，CLI 参数解析，子命令路由
+├── orchestrator.go    # 备份流程编排器
+├── config.go          # 配置管理
+├── config_bundle.go   # 配置导出/导入（age 加密）
+├── docker.go          # Docker Compose 服务管理
+├── backup.go          # Kopia 备份操作
+├── logger.go          # 日志系统
+├── gist.go            # GitHub Gist 日志上传
+├── notify.go          # Apprise 通知
+├── Makefile           # 交叉编译脚本
+└── dist/              # 编译产物目录
 ```
 
 #### 构建命令
@@ -489,6 +493,157 @@ journalctl -u yewresin-backup.service -f
 - **错误通知**：脚本已集成 Apprise 通知，配置后可自动发送备份结果
 - **避免重叠**：脚本内置锁机制，防止多个备份任务同时运行
 
+### 使用 sudo cron 运行
+
+Docker 操作通常需要 root 权限，但 Kopia 和 rclone 的配置文件默认存储在**当前用户**的 home 目录下。如果你以普通用户配置了 Kopia 和 rclone，然后在 `sudo crontab` 中运行脚本，root 用户会找不到配置文件。
+
+通过 `KOPIA_CONFIG_FILE` 和 `RCLONE_CONFIG` 环境变量，你可以将配置文件路径指向原来的非 root 用户目录，避免手动复制配置：
+
+```bash
+# 假设你以 yewfence 用户配置了 kopia 和 rclone
+# 在 .env 中添加以下配置：
+
+# Kopia 配置文件（默认位于 ~/.config/kopia/repository.config）
+KOPIA_CONFIG_FILE="/home/yewfence/.config/kopia/repository.config"
+
+# Rclone 配置文件（默认位于 ~/.config/rclone/rclone.conf）
+RCLONE_CONFIG="/home/yewfence/.config/rclone/rclone.conf"
+```
+
+然后在 root 的 crontab 中配置定时任务：
+
+```bash
+sudo crontab -e
+
+# 每天北京时间凌晨 3 点执行（UTC 19:00）
+0 19 * * * /home/yewfence/yewresin/yewresin -y
+```
+
+> **提示**：
+> - 用 `echo ~yewfence` 确认用户的 home 目录路径
+> - 如果你的普通用户在 `docker` 用户组中可以免 sudo 运行 Docker，也可以直接使用普通用户的 `crontab -e` 配置，这样无需额外指定配置文件路径
+
+
+## 异地恢复引导
+
+当服务器需要迁移或灾难恢复时，按以下步骤从备份中恢复数据。
+
+### 快速迁移（Go 版本）
+
+Go 版本提供配置导出/导入功能，可以将 rclone、kopia 的配置文件加密打包，在新服务器上一键还原：
+
+```bash
+# 在旧服务器上导出配置（会自动检测 rclone.conf、repository.config 等）
+yewresin config export -o my-config.age
+
+# 将 my-config.age 传到新服务器后导入
+yewresin config import my-config.age
+```
+
+导出内容包括：`.env`、`rclone.conf`、`repository.config`、`repository.config.kopia-password`（如存在）。归档使用 age scrypt 密码加密，可以安全地通过任何渠道传输。
+
+导出时需要输入加密密码（两次确认），导入时需要输入相同的密码解密。密码不会存储在任何地方，请妥善保管。
+
+使用 `yewresin config list` 可以预览会导出哪些文件及其路径。
+
+### 手动恢复
+
+如果你使用 Shell 版本，或需要更细粒度的控制，可以按以下步骤手动恢复。
+
+### 1. 安装依赖
+
+在新机器上安装 Kopia 和 rclone（如果备份使用了 rclone 远端）：
+
+```bash
+# 安装 kopia
+curl -s https://kopia.io/signing-key | sudo gpg --dearmor -o /etc/apt/keyrings/kopia-keyring.gpg
+echo "deb [signed-by=/etc/apt/keyrings/kopia-keyring.gpg] http://packages.kopia.io/apt/ stable main" | sudo tee /etc/apt/sources.list.d/kopia.list
+sudo apt update && sudo apt install kopia
+
+# 安装 rclone（如果备份存储在云端）
+curl https://rclone.org/install.sh | sudo bash
+```
+
+### 2. 配置 rclone（如需）
+
+如果你的 Kopia 仓库使用 rclone 作为存储后端，需要先配置好相同的远端：
+
+```bash
+# 交互式配置（按提示输入云端凭据）
+rclone config
+
+# 或者直接从旧机器复制配置文件
+# 默认位置：~/.config/rclone/rclone.conf
+```
+
+### 3. 连接 Kopia 仓库
+
+```bash
+# 连接 rclone 远端仓库（与备份时的 EXPECTED_REMOTE 一致）
+kopia repository connect rclone --remote-path="gdrive:backup"
+
+# 或连接本地/文件系统仓库
+kopia repository connect filesystem --path /path/to/kopia-repo
+
+# 或使用 S3 仓库
+kopia repository connect s3 --bucket=my-backup-bucket \
+    --access-key=AKIAIOSFODNN7EXAMPLE \
+    --secret-access-key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```
+
+> 连接时需要输入创建仓库时设置的密码（即 `KOPIA_PASSWORD`）。
+
+### 4. 查看可用快照
+
+```bash
+kopia snapshot list
+```
+
+输出示例：
+
+```
+user@hostname:/opt/docker_file
+  2025-12-20 03:00:15 UTC k1a2b3c4d5e6f7 102.6 MB
+  2025-12-21 03:00:12 UTC k8a9b0c1d2e3f4 103.1 MB (+0.5 MB)
+```
+
+### 5. 恢复数据
+
+**方式一：直接恢复到目标目录（推荐）**
+
+```bash
+# 恢复整个快照到指定目录
+kopia snapshot restore <snapshot-id> /opt/docker_file
+```
+
+**方式二：挂载后手动选择文件**
+
+```bash
+mkdir /tmp/kopia-mount
+kopia mount <snapshot-id> /tmp/kopia-mount &
+
+# 浏览并按需复制文件
+ls /tmp/kopia-mount/
+cp -r /tmp/kopia-mount/some-service /opt/docker_file/
+
+# 完成后卸载
+umount /tmp/kopia-mount
+```
+
+### 6. 恢复后启动服务
+
+```bash
+# 逐个进入服务目录启动（docker compose 会自动检测 compose 文件）
+cd /opt/docker_file
+for dir in */; do
+    if ls "$dir"compose*.y*ml "$dir"docker-compose*.y*ml 2>/dev/null | head -1 > /dev/null; then
+        echo "Starting $dir..."
+        (cd "$dir" && docker compose up -d)
+    fi
+done
+```
+
+> 更多 Kopia 用法参考 [Kopia 官方文档](https://kopia.io/docs/)，rclone 配置参考 [rclone 官方文档](https://rclone.org/docs/)。
 
 ## License
 
