@@ -41,18 +41,28 @@ type Config struct {
 	RcloneConfig    string // Rclone 配置文件路径
 }
 
+// resolveEnvPath 解析 .env 文件路径
+// 如果 configPath 非空则直接返回，否则默认为程序同目录的 .env
+func resolveEnvPath(configPath string) (string, error) {
+	if configPath != "" {
+		return configPath, nil
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("获取程序路径失败: %w", err)
+	}
+	return filepath.Join(filepath.Dir(exe), ".env"), nil
+}
+
 // LoadConfig 从 .env 文件和环境变量加载配置
 func LoadConfig(configPath string) (*Config, error) {
 	originalPath := configPath
 	// 确定配置文件路径
-	if configPath == "" {
-		// 默认使用程序所在目录的 .env
-		exe, err := os.Executable()
-		if err != nil {
-			return nil, fmt.Errorf("获取程序路径失败: %w", err)
-		}
-		configPath = filepath.Join(filepath.Dir(exe), ".env")
+	resolved, err := resolveEnvPath(configPath)
+	if err != nil {
+		return nil, err
 	}
+	configPath = resolved
 
 	// 加载 .env 文件（如果存在）
 	if _, err := os.Stat(configPath); err != nil {

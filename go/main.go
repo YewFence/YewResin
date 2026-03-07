@@ -15,6 +15,33 @@ import (
 var version = "dev"
 
 func main() {
+	// --version 全局处理（兼容有无子命令的情况）
+	if len(os.Args) > 1 {
+		for _, arg := range os.Args[1:] {
+			if arg == "--version" || arg == "-version" {
+				fmt.Printf("YewResin %s\n", version)
+				os.Exit(0)
+			}
+		}
+
+		// 子命令分发：第一个参数不是 flag 时视为子命令
+		if !strings.HasPrefix(os.Args[1], "-") {
+			switch os.Args[1] {
+			case "config":
+				runConfigCmd(os.Args[2:])
+				return
+			default:
+				fmt.Fprintf(os.Stderr, "未知命令: %s\n运行 '%s --help' 查看用法\n", os.Args[1], os.Args[0])
+				os.Exit(1)
+			}
+		}
+	}
+
+	runBackup()
+}
+
+// runBackup 执行备份主流程（默认行为）
+func runBackup() {
 	// CLI 参数定义
 	dryRun := flag.Bool("dry-run", false, "模拟运行，不执行实际操作")
 	flag.BoolVar(dryRun, "n", false, "模拟运行（-dry-run 的简写）")
@@ -23,11 +50,15 @@ func main() {
 	flag.BoolVar(autoConfirm, "y", false, "跳过确认（-yes 的简写）")
 
 	configFile := flag.String("config", "", "配置文件路径（默认为程序同目录的 .env）")
-	showVersion := flag.Bool("version", false, "显示版本信息")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "YewResin - Docker 服务备份工具 (Go 版本)\n\n")
-		fmt.Fprintf(os.Stderr, "用法: %s [选项]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "用法: %s [选项]\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "      %s <命令> [选项]\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "命令:\n")
+		fmt.Fprintf(os.Stderr, "  config export   导出配置文件（加密归档）\n")
+		fmt.Fprintf(os.Stderr, "  config import   导入配置文件（解密还原）\n")
+		fmt.Fprintf(os.Stderr, "  config list     列出可导出的配置文件\n\n")
 		fmt.Fprintf(os.Stderr, "选项:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\n示例:\n")
@@ -36,11 +67,6 @@ func main() {
 	}
 
 	flag.Parse()
-
-	if *showVersion {
-		fmt.Printf("YewResin %s\n", version)
-		os.Exit(0)
-	}
 
 	// 加载配置（先加载配置以获取日志文件路径）
 	cfg, err := LoadConfig(*configFile)
