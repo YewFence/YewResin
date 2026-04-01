@@ -4,62 +4,92 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目概述
 
-YewResin 是一个 Docker Compose 服务的自动化备份脚本，使用 Kopia + rclone 实现本地快照与云端同步。脚本会依次停止所有 Docker 服务，创建一致性快照，然后按优先级恢复服务。
+YewResin 是一个 Docker Compose 服务的自动化备份工具，使用 Kopia + rclone 实现本地快照与云端同步。工具会依次停止所有 Docker 服务，创建一致性快照，然后按优先级恢复服务。
 
 ## 构建命令
 
 ```bash
-# 合并 src/ 模块生成 yewresin.sh（必须在修改代码后执行）
-make build
+# 构建当前平台（本地快速构建）
+just build
 
-# 清理生成的脚本
-make clean
+# 使用 GoReleaser 构建全平台可执行文件（通过 Docker，不发布）
+just release-snapshot
+
+# 模拟完整发布流程（不推送）
+just release-dry
+
+# 正式发布（需要 git tag + .env.goreleaser）
+just release
+
+# 运行测试
+just test
+
+# 清理构建产物
+just clean
 ```
 
-## 架构
+## 源码结构
 
-脚本采用模块化设计，源代码在 `src/` 目录下，按数字前缀顺序拼接：
+```
+YewResin/
+├── main.go                     # 程序入口，CLI 参数解析
+├── main_test.go               # main 包测试（confirm 函数）
+├── internal/yewresin/         # 核心逻辑
+│   ├── config.go              # 配置加载和验证
+│   ├── config_test.go
+│   ├── docker.go              # Docker Compose 服务管理
+│   ├── docker_test.go
+│   ├── backup.go              # Kopia 备份操作
+│   ├── logger.go              # 日志系统
+│   ├── logger_test.go
+│   ├── gist.go                # GitHub Gist 日志上传
+│   ├── notify.go              # Apprise 通知发送
+│   ├── orchestrator.go        # 备份流程编排器
+│   └── orchestrator_test.go
+├── justfile                   # 构建脚本（GoReleaser 集成）
+├── .goreleaser.yaml           # GoReleaser 配置
+├── Dockerfile                 # Docker 镜像定义
+├── go.mod / go.sum
+├── .env.example
+└── .github/workflows/        # CI/CD
+```
 
-| 模块 | 职责 |
+**核心逻辑在 `internal/yewresin/`：**
+
+| 文件 | 职责 |
 |------|------|
-| `00-header.sh` | shebang、set -eo pipefail、记录开始时间 |
-| `01-logging.sh` | 日志输出（tee 到文件和终端）、`log()` 函数 |
-| `02-args.sh` | 命令行参数解析（`--dry-run`、`-y`、`--help`） |
-| `03-config.sh` | 配置加载（从 `.env` 读取）、默认值、`print_config()` |
-| `04-utils.sh` | 通用工具函数 |
-| `05-notification.sh` | Apprise 通知发送 |
-| `06-gist.sh` | GitHub Gist 日志上传和清理 |
-| `07-dependencies.sh` | 依赖检查（rclone、kopia） |
-| `08-services.sh` | Docker 服务管理：停止、启动、状态检查、cleanup |
-| `09-main.sh` | 主流程：停止服务 → Kopia 快照 → 启动服务 |
-
-**核心函数在 `08-services.sh`：**
-- `stop_all_services()` / `start_all_services()` - 批量服务管理
-- `is_service_running()` - 检测服务运行状态
-- `cleanup()` - 异常退出时自动恢复服务（trap EXIT）
+| `orchestrator.go` | 备份流程编排：锁机制、信号处理、cleanup |
+| `docker.go` | 服务发现、启停、并行操作 |
+| `backup.go` | Kopia 快照创建、依赖检查 |
+| `config.go` | 环境变量加载、配置验证 |
+| `logger.go` | slog 日志系统、文件输出 |
+| `gist.go` | Gist 上传和旧日志清理 |
+| `notify.go` | Apprise 异步通知 |
 
 **服务启停优先级逻辑：**
 - 优先服务（`PRIORITY_SERVICES`）：最后停止，最先启动（如网关 caddy/nginx）
 - 普通服务：先停止，后启动
-- 只恢复原本在运行的服务（通过 `RUNNING_SERVICES` 关联数组追踪）
+- 并行停止/启动，提升性能
+- 只恢复原本在运行的服务
 
 ## 开发流程
 
-1. 修改 `src/` 下的模块文件
-2. 执行 `make build` 重新生成 `yewresin.sh`
-3. 提交 `src/`、`Makefile` 和 `yewresin.sh`
+1. 修改 `internal/yewresin/` 下的源文件
+2. 运行 `just test` 确保测试通过
+3. 运行 `just build` 构建当前平台进行本地测试
+4. 提交代码
 
 ## 运行与测试
 
 ```bash
 # 本地模拟运行（不执行实际操作）
-./yewresin.sh --dry-run
+./yewresin --dry-run
 
 # 执行备份（需确认）
-./yewresin.sh
+./yewresin
 
 # 跳过确认（用于 cron）
-./yewresin.sh -y
+./yewresin -y
 ```
 
 ## 配置
@@ -72,5 +102,15 @@ make clean
 
 ## CI/CD
 
-- `dev-release.yml` - main 分支推送后自动构建并发布到 `latest` tag
-- `prod-release.yml` - 手动触发正式版本发布
+使用 GoReleaser 管理构建和发布：
+- `build-artifact.yml` - PR 到 main 分支后使用 GoReleaser snapshot 构建
+- `release.yml` - 推送 `v*` 标签后自动发布到 GitHub Release / Homebrew Tap
+
+发布目标：
+- **GitHub Release** - 全平台二进制文件（linux/darwin/windows, amd64/arm64）
+- **Homebrew Tap** - 通过环境变量 `HOMEBREW_TAP_OWNER` / `HOMEBREW_TAP_NAME` 指定仓库
+
+GitHub Secrets/Variables 配置：
+- `TAP_GITHUB_TOKEN` (Secret) - Homebrew Tap 仓库的 PAT
+- `HOMEBREW_TAP_OWNER` (Variable) - Tap 仓库所有者
+- `HOMEBREW_TAP_NAME` (Variable) - Tap 仓库名称（如 `homebrew-tap`）

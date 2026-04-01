@@ -1,0 +1,12 @@
+services:
+  goreleaser:
+    image: goreleaser/goreleaser:v2.15.2
+    working_dir: /app
+    volumes:
+      - .:/app
+      - go-module-cache:/go/pkg/mod
+    env_file:
+      - .env.goreleaser
+
+volumes:
+  go-module-cache:

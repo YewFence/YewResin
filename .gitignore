@@ -1,4 +1,11 @@
 .env
-yewresin.sh
+.env.goreleaser
+dist/
+*.exe
+yewresin
+
+docs/node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 .claude/

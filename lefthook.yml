@@ -1,0 +1,7 @@
+min_version: 1.11.0
+
+pre-commit:
+  commands:
+    pinact-check:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: bash .lefthook/pre-commit/pinact-check.sh
