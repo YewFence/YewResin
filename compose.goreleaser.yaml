@@ -1,6 +1,6 @@
 services:
   goreleaser:
-    image: goreleaser/goreleaser:v3
+    image: goreleaser/goreleaser:v2.15.2
     working_dir: /app
     volumes:
       - .:/app

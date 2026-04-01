@@ -2,7 +2,7 @@ version: 2
 
 before:
   hooks:
-    - go mod tidy
+    - go mod download
 
 builds:
   - main: .
@@ -26,11 +26,11 @@ builds:
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:
-  - format: tar.gz
+  - formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
-        format: zip
+        formats: [zip]
     files:
       - LICENSE
       - README.md
@@ -66,19 +66,14 @@ release:
   prerelease: auto
   name_template: "v{{.Version}}"
 
-brews:
+homebrew_casks:
   - name: yewresin
     repository:
       owner: "{{ .Env.HOMEBREW_TAP_OWNER }}"
       name: "{{ .Env.HOMEBREW_TAP_NAME }}"
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: "https://github.com/YewFence/yewresin"
     description: "Docker Compose service backup tool using Kopia + rclone"
-    license: MIT
-    install: |
-      bin.install "yewresin"
-    test: |
-      system "#{bin}/yewresin --version"
-    commit_msg_template: "Brew formula update for {{ .ProjectName }} v{{ .Tag }}"
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} v{{ .Tag }}"
 

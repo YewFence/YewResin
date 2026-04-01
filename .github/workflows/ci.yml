@@ -19,6 +19,11 @@ jobs:
         with:
           go-version: "1.23"
 
+      - name: Check go.mod tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
       - name: Vet
         run: go vet ./...
 
@@ -36,7 +41,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
