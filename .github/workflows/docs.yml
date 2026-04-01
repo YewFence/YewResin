@@ -28,16 +28,20 @@ jobs:
         with:
           node-version: 22
 
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: docs/package.json
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
         working-directory: docs
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build with VitePress
         working-directory: docs
-        run: npm run build
+        run: pnpm build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
