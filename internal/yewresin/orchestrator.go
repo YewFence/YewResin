@@ -80,10 +80,9 @@ func (o *Orchestrator) CheckDependencies() error {
 }
 
 // Run 执行备份流程
-func (o *Orchestrator) Run() error {
+func (o *Orchestrator) Run() (finalErr error) {
 	o.startTime = time.Now().UTC()
 
-	var finalErr error
 	var stopErrMsg string
 
 	// defer 确保日志上传和通知总是执行
@@ -102,7 +101,7 @@ func (o *Orchestrator) Run() error {
 		case stopErrMsg != "":
 			o.notifier.Send("❌ 备份中止", stopErrMsg)
 		case finalErr != nil:
-			o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
+			o.notifier.Send("❌ 备份失败", fmt.Sprintf("备份流程出错: %v，服务已尝试恢复", finalErr))
 		case o.dryRun:
 			o.notifier.Send("🧪 DRY-RUN 完成", "模拟运行完成，未执行实际操作")
 		default:
@@ -114,14 +113,16 @@ func (o *Orchestrator) Run() error {
 
 	// 1. 获取锁
 	if err := o.acquireLock(); err != nil {
-		return err
+		finalErr = err
+		return finalErr
 	}
 	defer o.releaseLock()
 
 	// 2. 发现并分类服务
 	services, err := o.docker.DiscoverServices()
 	if err != nil {
-		return fmt.Errorf("发现服务失败: %w", err)
+		finalErr = fmt.Errorf("发现服务失败: %w", err)
+		return finalErr
 	}
 
 	o.priorityServices, o.normalServices = ClassifyServices(services, o.cfg.PriorityServices)
@@ -143,7 +144,7 @@ func (o *Orchestrator) Run() error {
 		}
 		stopErrMsg = fmt.Sprintf("服务停止失败: %s", strings.Join(errMsgs, ", "))
 		o.startAllServices()
-		finalErr = fmt.Errorf("停止普通服务失败: %v", errs)
+		finalErr = fmt.Errorf("停止普通服务失败: %w", errors.Join(errs...))
 		return finalErr
 	}
 
