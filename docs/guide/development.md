@@ -5,10 +5,13 @@
 - **Go 1.23+**
 - **[just](https://github.com/casey/just)** - 命令运行器
 - **Docker** - 用于跨平台构建（GoReleaser 通过 Docker 运行）
+- **[pinact](https://github.com/suzuki-shunsuke/pinact)** - 用于 pin GitHub Actions 版本
+- **[ghtkn](https://github.com/suzuki-shunsuke/ghtkn)** - （可选的）用于使 `pinact` 绕过 GitHub API 速率限制
+- **[lefthook](https://github.com/evilmartians/lefthook)** - 管理 pinact 检测 hook
 
 ## 项目结构
 
-```
+```text
 YewResin/
 ├── main.go                     # 程序入口，CLI 参数解析
 ├── main_test.go
@@ -40,6 +43,17 @@ just test
 
 # 清理构建产物
 just clean
+```
+
+### Github Action 更新
+
+```bash
+# 安装检测 hook
+lefthook install
+
+# 更新 github action 版本
+ghtkn get | pinact token set -stdin
+pinact run -u
 ```
 
 ## 跨平台构建（GoReleaser）
