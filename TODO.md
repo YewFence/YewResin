@@ -11,7 +11,7 @@
 ## 可选改进
 
 - [x] 单元测试
-- [ ] 更结构化的配置格式（YAML/TOML）
+- [ ] 支持 XDG 规范配置目录（如 `~/.config/yewresin/.env`），改善 Homebrew 等包管理器安装后的配置体验
 - [ ] JSON 日志格式输出选项
 - [ ] 引入 pinact github action 自动 pin action 版本
 

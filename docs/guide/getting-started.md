@@ -23,7 +23,15 @@ sudo apt update && sudo apt install kopia
 kopia repository connect rclone --remote-path="gdrive:backup"
 ```
 
-## 2. 下载 YewResin
+## 2. 安装 YewResin
+
+### Homebrew（macOS/Linux）
+
+```bash
+brew install yewfence/tap/yewresin
+```
+
+### 下载可执行文件
 
 根据系统架构下载对应的二进制文件：
 
@@ -48,15 +56,39 @@ chmod +x yewresin
 
 ## 3. 配置
 
-创建 `.env` 文件（与 yewresin 同目录）：
+### Homebrew 安装 {#homebrew}
+
+Homebrew 安装后，程序位于 `bin/` 目录下，无法在同目录放置 `.env` 文件。推荐使用 `--config` 指定配置文件：
 
 ```bash
-# 在脚本所在目录下载示例文件
+# 创建配置目录
+mkdir -p ~/.config/yewresin
+# 下载示例文件
+wget https://github.com/YewFence/YewResin/releases/latest/download/.env.example -O ~/.config/yewresin/.env
+# 编辑配置
+vim ~/.config/yewresin/.env
+
+# 运行时指定配置文件
+yewresin --config ~/.config/yewresin/.env
+```
+
+或者直接使用环境变量（适合 cron 场景）：
+
+```bash
+BASE_DIR=/opt/docker_file EXPECTED_REMOTE=gdrive:backup yewresin -y
+```
+
+### 直接下载安装
+
+在程序同目录创建 `.env` 文件：
+
+```bash
+cd ~/yewresin
 wget https://github.com/YewFence/YewResin/releases/latest/download/.env.example
 cp .env.example .env
 ```
 
-必要环境变量配置：
+### 必要环境变量
 
 ```bash
 # Docker Compose 项目总目录
@@ -76,13 +108,13 @@ EXPECTED_REMOTE=gdrive:backup
 
 ```bash
 # 模拟运行（推荐先测试）
-./yewresin --dry-run
+yewresin --dry-run
 
 # 执行备份（需确认）
-./yewresin
+yewresin
 
 # 跳过确认直接执行（适用于 cron）
-./yewresin -y
+yewresin -y
 ```
 
 ## 5. 备份连接凭证
