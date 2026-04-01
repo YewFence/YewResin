@@ -1,9 +1,11 @@
 package yewresin
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -143,5 +145,134 @@ func TestStopStartMissingMethod(t *testing.T) {
 	}
 	if err := dm.Start(svc); err == nil {
 		t.Fatalf("expected start missing method error")
+	}
+}
+
+func TestServiceError(t *testing.T) {
+	inner := errors.New("connection refused")
+	se := &ServiceError{Service: "api", Err: inner}
+
+	if !strings.Contains(se.Error(), "api") || !strings.Contains(se.Error(), "connection refused") {
+		t.Fatalf("Error() should contain service name and inner error, got: %q", se.Error())
+	}
+	if unwrapped := se.Unwrap(); unwrapped != inner {
+		t.Fatalf("Unwrap() should return inner error")
+	}
+}
+
+func TestNewDockerManagerDefaultTimeout(t *testing.T) {
+	dm := NewDockerManager("/tmp", false, 0)
+	if dm.commandTimeout != 120*time.Second {
+		t.Fatalf("default timeout should be 120s, got %v", dm.commandTimeout)
+	}
+
+	dm2 := NewDockerManager("/tmp", false, -5*time.Second)
+	if dm2.commandTimeout != 120*time.Second {
+		t.Fatalf("negative timeout should default to 120s, got %v", dm2.commandTimeout)
+	}
+}
+
+func TestStopStartNotRunning(t *testing.T) {
+	baseDir := t.TempDir()
+	dm := NewDockerManager(baseDir, false, time.Second)
+	svc := &Service{Name: "idle", Path: baseDir, Running: false}
+
+	// 未运行的服务应跳过，不报错
+	if err := dm.Stop(svc); err != nil {
+		t.Fatalf("Stop not-running service should not error, got: %v", err)
+	}
+	if err := dm.Start(svc); err != nil {
+		t.Fatalf("Start not-running service should not error, got: %v", err)
+	}
+}
+
+func TestStopParallelDryRun(t *testing.T) {
+	baseDir := t.TempDir()
+	svcDir := filepath.Join(baseDir, "svc")
+	if err := os.MkdirAll(svcDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(svcDir, "compose.yaml"), []byte("services:\n"), 0o600); err != nil {
+		t.Fatalf("write compose: %v", err)
+	}
+
+	dm := NewDockerManager(baseDir, true, time.Second)
+	services := []*Service{
+		{Name: "svc1", Path: svcDir, Running: true},
+		{Name: "svc2", Path: svcDir, Running: true},
+	}
+
+	errs := dm.StopParallel(services)
+	if len(errs) != 0 {
+		t.Fatalf("dry-run StopParallel should have no errors, got %v", errs)
+	}
+}
+
+func TestStartParallelDryRun(t *testing.T) {
+	baseDir := t.TempDir()
+	svcDir := filepath.Join(baseDir, "svc")
+	if err := os.MkdirAll(svcDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(svcDir, "compose.yaml"), []byte("services:\n"), 0o600); err != nil {
+		t.Fatalf("write compose: %v", err)
+	}
+
+	dm := NewDockerManager(baseDir, true, time.Second)
+	services := []*Service{
+		{Name: "svc1", Path: svcDir, Running: true},
+		{Name: "svc2", Path: svcDir, Running: true},
+	}
+
+	errs := dm.StartParallel(services)
+	if len(errs) != 0 {
+		t.Fatalf("dry-run StartParallel should have no errors, got %v", errs)
+	}
+}
+
+func TestParallelEmpty(t *testing.T) {
+	baseDir := t.TempDir()
+	dm := NewDockerManager(baseDir, true, time.Second)
+
+	if errs := dm.StopParallel(nil); errs != nil {
+		t.Fatalf("StopParallel(nil) should return nil, got %v", errs)
+	}
+	if errs := dm.StartParallel(nil); errs != nil {
+		t.Fatalf("StartParallel(nil) should return nil, got %v", errs)
+	}
+}
+
+func TestParallelMissingMethod(t *testing.T) {
+	baseDir := t.TempDir()
+	svcDir := filepath.Join(baseDir, "svc")
+	if err := os.MkdirAll(svcDir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+
+	dm := NewDockerManager(baseDir, true, time.Second)
+	services := []*Service{
+		{Name: "svc", Path: svcDir, Running: true},
+	}
+
+	errs := dm.StopParallel(services)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(errs))
+	}
+
+	errs = dm.StartParallel(services)
+	if len(errs) != 1 {
+		t.Fatalf("expected 1 error, got %d", len(errs))
+	}
+}
+
+func TestClassifyServicesEmpty(t *testing.T) {
+	priority, normal := ClassifyServices(nil, []string{"db"})
+	if len(priority) != 0 || len(normal) != 0 {
+		t.Fatalf("empty input: priority=%d normal=%d", len(priority), len(normal))
+	}
+
+	priority, normal = ClassifyServices([]*Service{{Name: "a"}}, nil)
+	if len(priority) != 0 || len(normal) != 1 {
+		t.Fatalf("nil priority names: priority=%d normal=%d", len(priority), len(normal))
 	}
 }
