@@ -2,7 +2,7 @@
 
 ## 环境要求
 
-- **Go 1.23+**
+- **Go 1.25.8+**
 - **[just](https://github.com/casey/just)** - 命令运行器
 - **Docker** - 用于跨平台构建（GoReleaser 通过 Docker 运行）
 - **[pinact](https://github.com/suzuki-shunsuke/pinact)** - 用于 pin GitHub Actions 版本
