@@ -1,16 +1,4 @@
-# YewResin - Docker 服务备份工具
-
-一个自动化的 Docker Compose 服务备份工具，使用 Kopia 实现本地快照与云端同步。
-
-## 功能特点
-
-- 自动停止所有 Docker Compose 服务，创建一致性快照
-- 支持优先级服务（如网关）的顺序控制：最后停止，最先启动
-- 只重启原本运行中的服务，不会启动原本停止的服务
-- **快速失败**：服务停止失败时立即中止备份，避免数据损坏
-- 并行停止/启动服务，性能更优
-- 支持 [Apprise](https://github.com/caronc/apprise-api) 通知
-- 支持 GitHub Gist 日志推送
+# 快速开始
 
 ## 依赖
 
@@ -18,9 +6,7 @@
 - Docker & Docker Compose
 - 可选：[rclone](https://rclone.org/downloads/) - 云存储同步工具
 
-## 快速开始
-
-### 1. 安装依赖
+## 1. 安装依赖
 
 ```bash
 # 安装 rclone（按需）
@@ -37,7 +23,7 @@ sudo apt update && sudo apt install kopia
 kopia repository connect rclone --remote-path="gdrive:backup"
 ```
 
-### 2. 下载 YewResin
+## 2. 下载 YewResin
 
 根据系统架构下载对应的二进制文件：
 
@@ -60,7 +46,7 @@ chmod +x yewresin
 
 > `latest` 标签会在 main 分支推送后自动更新，也可以下载指定版本（如 `v2.0.0`）。
 
-### 3. 配置
+## 3. 配置
 
 创建 `.env` 文件（与 yewresin 同目录）：
 
@@ -71,6 +57,7 @@ cp .env.example .env
 ```
 
 必要环境变量配置：
+
 ```bash
 # Docker Compose 项目总目录
 BASE_DIR=/opt/docker_file
@@ -78,7 +65,7 @@ BASE_DIR=/opt/docker_file
 EXPECTED_REMOTE=gdrive:backup
 ```
 
-### 4. 运行
+## 4. 运行
 
 ```bash
 # 模拟运行（推荐先测试）
@@ -91,16 +78,32 @@ EXPECTED_REMOTE=gdrive:backup
 ./yewresin -y
 ```
 
-## 文档
+## 5. 备份连接凭证
 
-完整文档请访问 [YewResin 文档站](https://yewfence.github.io/YewResin/)
+为了保证可以快速异地恢复，建议备份连接 Kopia 仓库与 rclone (如有)的连接凭证
 
-- [工作原理](https://yewfence.github.io/YewResin/guide/how-it-works)
-- [Gist 日志推送](https://yewfence.github.io/YewResin/guide/gist-logging)
-- [定时任务](https://yewfence.github.io/YewResin/guide/scheduling)
-- [异地恢复](https://yewfence.github.io/YewResin/guide/recovery)
-- [配置参考](https://yewfence.github.io/YewResin/reference/configuration)
+### Rclone 连接凭证
+```bash
+rclone config file  # 确认 rclone 配置文件路径
+# 复制配置文件内容并安全保存
+# 此处以默认路径为例
+cat ~/.config/rclone/rclone.conf
+```
+### Kopia 连接凭证
 
-## License
+```bash
+# 打印 kopia 仓库连接状态，输出中包含完整的重连命令
+kopia repository status -t -s
+# 部分示例输出：
+# To reconnect to the repository use:
+# $ kopia repository connect from-config --token eyJ2ZXJz...
+# 复制并保存该命令内容
+```
 
-MIT
+### 注意事项
+- 连接凭证可以**直接用于访问仓库**，请妥善保管
+- 建议将凭证存储在安全的密码管理器中，如 [Bitwarden](https://bitwarden.com/) ，或使用 [age](https://github.com/FiloSottile/age) 等工具加密保存
+
+更多异地恢复信息请参考 [恢复指南](guide/recovery)，
+
+更多运行参数请参考 [配置参考](/reference/configuration)。
