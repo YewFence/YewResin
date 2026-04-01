@@ -232,9 +232,12 @@ func TestOrchestratorRunStopParallelError(t *testing.T) {
 	if docker.startParallelCalled != 1 {
 		t.Fatalf("expected StartParallel called once after failure, got %d", docker.startParallelCalled)
 	}
-	// 早期失败不应上传日志
-	if len(gist.uploads) != 0 {
-		t.Fatalf("expected no gist upload on stop failure")
+	// 即使停止失败也应上传日志，且 success 为 false
+	if len(gist.uploads) != 1 {
+		t.Fatalf("expected gist upload called once on stop failure, got %d", len(gist.uploads))
+	}
+	if gist.uploads[0].success {
+		t.Fatalf("expected gist upload success flag false on stop failure")
 	}
 }
 

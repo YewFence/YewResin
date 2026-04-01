@@ -82,7 +82,35 @@ func (o *Orchestrator) CheckDependencies() error {
 // Run 执行备份流程
 func (o *Orchestrator) Run() error {
 	o.startTime = time.Now().UTC()
-	defer o.notifier.Wait()
+
+	var finalErr error
+	var stopErrMsg string
+
+	// defer 确保日志上传和通知总是执行
+	defer func() {
+		// 上传日志到 Gist
+		success := finalErr == nil
+		duration := time.Since(o.startTime)
+		if LogWriter != nil {
+			if err := o.gist.Upload(LogWriter.GetContent(), success, o.startTime, duration); err != nil {
+				slog.Warn("上传日志到 Gist 失败", "error", err)
+			}
+		}
+
+		// 统一发送最终通知
+		switch {
+		case stopErrMsg != "":
+			o.notifier.Send("❌ 备份中止", stopErrMsg)
+		case finalErr != nil:
+			o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
+		case o.dryRun:
+			o.notifier.Send("🧪 DRY-RUN 完成", "模拟运行完成，未执行实际操作")
+		default:
+			o.notifier.Send("✅ 备份成功", "所有服务已恢复运行")
+		}
+
+		o.notifier.Wait()
+	}()
 
 	// 1. 获取锁
 	if err := o.acquireLock(); err != nil {
@@ -113,17 +141,19 @@ func (o *Orchestrator) Run() error {
 		for i, e := range errs {
 			errMsgs[i] = e.Error()
 		}
-		o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务停止失败: %s", strings.Join(errMsgs, ", ")))
+		stopErrMsg = fmt.Sprintf("服务停止失败: %s", strings.Join(errMsgs, ", "))
 		o.startAllServices()
-		return fmt.Errorf("停止普通服务失败: %v", errs)
+		finalErr = fmt.Errorf("停止普通服务失败: %v", errs)
+		return finalErr
 	}
 
 	slog.Info(">>> 顺序停止优先服务（网关）...")
 	for _, svc := range o.priorityServices {
 		if err := o.docker.Stop(svc); err != nil {
-			o.notifier.Send("❌ 备份中止", fmt.Sprintf("服务 %s 停止失败", svc.Name))
+			stopErrMsg = fmt.Sprintf("服务 %s 停止失败", svc.Name)
 			o.startAllServices()
-			return fmt.Errorf("停止服务 %s 失败: %w", svc.Name, err)
+			finalErr = fmt.Errorf("停止服务 %s 失败: %w", svc.Name, err)
+			return finalErr
 		}
 	}
 
@@ -134,25 +164,9 @@ func (o *Orchestrator) Run() error {
 	// 6. 恢复服务（无论备份是否成功）
 	o.startAllServices()
 
-	// 7. 上传日志到 Gist
-	success := backupErr == nil
-	duration := time.Since(o.startTime)
-	if LogWriter != nil {
-		if err := o.gist.Upload(LogWriter.GetContent(), success, o.startTime, duration); err != nil {
-			slog.Warn("上传日志到 Gist 失败", "error", err)
-		}
-	}
-
-	// 8. 发送结果通知
 	if backupErr != nil {
-		o.notifier.Send("❌ 备份失败", "快照创建失败，服务已恢复")
-		return backupErr
-	}
-
-	if o.dryRun {
-		o.notifier.Send("🧪 DRY-RUN 完成", "模拟运行完成，未执行实际操作")
-	} else {
-		o.notifier.Send("✅ 备份成功", "所有服务已恢复运行")
+		finalErr = backupErr
+		return finalErr
 	}
 
 	return nil
