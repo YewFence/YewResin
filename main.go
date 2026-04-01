@@ -9,6 +9,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/YewFence/yewresin/internal/yewresin"
 )
 
 // 版本信息，构建时注入
@@ -26,7 +28,7 @@ func main() {
 	showVersion := flag.Bool("version", false, "显示版本信息")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "YewResin - Docker 服务备份工具 (Go 版本)\n\n")
+		fmt.Fprintf(os.Stderr, "YewResin - Docker 服务备份工具\n\n")
 		fmt.Fprintf(os.Stderr, "用法: %s [选项]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "选项:\n")
 		flag.PrintDefaults()
@@ -43,14 +45,14 @@ func main() {
 	}
 
 	// 加载配置（先加载配置以获取日志文件路径）
-	cfg, err := LoadConfig(*configFile)
+	cfg, err := yewresin.LoadConfig(*configFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "加载配置失败: %v\n", err)
 		os.Exit(1)
 	}
 
 	// 初始化日志（支持文件输出）
-	logFile, err := InitLogger(cfg.LogFile)
+	logFile, err := yewresin.InitLogger(cfg.LogFile)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "初始化日志失败: %v\n", err)
 		os.Exit(1)
@@ -63,7 +65,7 @@ func main() {
 	cfg.Print()
 
 	// 创建备份编排器
-	orch := NewOrchestrator(cfg, *dryRun)
+	orch := yewresin.NewOrchestrator(cfg, *dryRun)
 
 	// 设置信号处理（Ctrl+C 等）
 	sigChan := make(chan os.Signal, 1)

@@ -5,13 +5,26 @@ on:
     branches:
       - main
     paths:
-      - 'src/**'
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
   workflow_dispatch:
     inputs:
       ref:
         description: '要构建的分支或标签'
         required: true
         default: 'main'
+      platform:
+        description: '选择构建平台'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - linux
+          - darwin
+          - windows
 
 permissions:
   contents: read
@@ -23,15 +36,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
-      - name: Run make
-        run: |
-          make
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build selected platform
+        run: make ${{ inputs.platform || 'all' }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: yewresin-${{ github.sha }}
-          path: |
-            yewresin.sh
-            .env.example
+          path: dist/*
           retention-days: 7

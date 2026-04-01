@@ -1,4 +1,4 @@
-package main
+package yewresin
 
 import (
 	"encoding/json"

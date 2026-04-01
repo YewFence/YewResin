@@ -2,12 +2,6 @@
 
 一个自动化的 Docker Compose 服务备份工具，使用 Kopia 实现本地快照与云端同步。
 
-提供两个版本：
-- **Shell 版本** (`v1.x`) - 轻量级 Bash 脚本，适合简单部署
-- **Go 版本** (`v2.x`) - 跨平台二进制，性能更优，并行处理
-
-两个版本的核心功能完全一致，依赖也相同，可根据使用场景自由选择。
-
 ## 功能特点
 
 - 自动停止所有 Docker Compose 服务，创建一致性快照
@@ -16,10 +10,11 @@
 - **快速失败**：服务停止失败时立即中止备份，避免在服务运行时备份导致数据损坏
 - 支持多种 compose 配置文件格式（`compose.yaml`、`compose.yml`、`docker-compose.yaml`、`docker-compose.yml`）
 - 支持 [Apprise](https://github.com/caronc/apprise-api) 通知
-> 可使用 [YewFence/apprise](https://github.com/YewFence/apprise) 快速部署到 Vercel
+  > 可使用 [YewFence/apprise](https://github.com/YewFence/apprise) 快速部署到 Vercel
 - 异常退出时自动恢复服务
 - 支持 dry-run 模式预览操作
 - 防止重复运行的锁机制
+- 并行停止/启动服务，性能更优
 
 ## 依赖
 
@@ -48,19 +43,11 @@ kopia repository connect rclone --remote-path="gdrive:backup"
 
 ### 2. 下载 YewResin
 
-#### Shell 版本 (v1.x)
+根据系统架构下载对应的二进制文件：
 
 ```bash
 mkdir ~/yewresin && cd ~/yewresin
-wget https://github.com/YewFence/YewResin/releases/download/latest/yewresin.sh
-chmod +x yewresin.sh
-```
 
-#### Go 版本 (v2.x)
-
-```bash
-mkdir ~/yewresin && cd ~/yewresin
-# 根据系统架构选择对应的二进制文件
 # Linux x64
 wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-linux-amd64 -O yewresin
 # Linux ARM64
@@ -75,9 +62,7 @@ wget https://github.com/YewFence/YewResin/releases/latest/download/yewresin-darw
 chmod +x yewresin
 ```
 
-> `latest` 标签会在 main 分支推送后自动更新，也可以下载指定版本：
-> - Shell 版本：`v1.x.x` 标签
-> - Go 版本：`v2.x.x` 标签
+> `latest` 标签会在 main 分支推送后自动更新，也可以下载指定版本（如 `v2.0.0`）。
 
 ### 3. 配置
 
@@ -85,7 +70,7 @@ chmod +x yewresin
 
 ```bash
 # 在脚本所在目录下载示例文件
-wget https://github.com/YewFence/YewResin/releases/download/latest/.env.example
+wget https://github.com/YewFence/YewResin/releases/latest/download/.env.example
 cp .env.example .env
 ```
 
@@ -101,60 +86,59 @@ EXPECTED_REMOTE=gdrive:backup
 
 ```bash
 # 模拟运行（推荐先测试）
-./yewresin --dry-run      # Go 版本
-./yewresin.sh --dry-run   # Shell 版本
+./yewresin --dry-run
 
 # 执行备份（需确认）
 ./yewresin
-./yewresin.sh
 
 # 跳过确认直接执行（适用于 cron）
 ./yewresin -y
-./yewresin.sh -y
 ```
 
 ### 5. 定时任务
+
 > 按需配置，此处我们以每天北京时间凌晨三点运行为例（假设服务器使用 UTC 时区）
+
 ```bash
 (crontab -l 2>/dev/null; echo '0 19 * * * /path/to/yewresin -y') | crontab -
 ```
 
 > **注意**：
 > - cron 使用系统时区，请先确认服务器时区（`timedatectl` 或 `date`），上述示例假设服务器为 UTC 时区
-> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为脚本同目录下的 `yewresin.log`）
+> - 脚本内部使用 exec 重定向，cron 的 `>>` 重定向会被覆盖，可通过 `LOG_FILE` 环境变量自定义日志路径（默认为程序同目录下的 `yewresin.log`）
 
 ## 命令行参数
 
-| 参数 | 说明 | Shell | Go |
-|------|------|:-----:|:--:|
-| `--dry-run`, `-n` | 模拟运行，只检查依赖和显示操作，不实际执行 | ✓ | ✓ |
-| `-y`, `--yes` | 跳过交互式确认 | ✓ | ✓ |
-| `--help`, `-h` | 显示帮助信息 | ✓ | ✓ |
-| `--config <path>` | 指定配置文件路径 | - | ✓ |
-| `--version` | 显示版本信息 | - | ✓ |
+| 参数 | 说明 |
+|------|------|
+| `--dry-run`, `-n` | 模拟运行，只检查依赖和显示操作，不实际执行 |
+| `-y`, `--yes` | 跳过交互式确认 |
+| `--help`, `-h` | 显示帮助信息 |
+| `--config <path>` | 指定配置文件路径 |
+| `--version` | 显示版本信息 |
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 | Shell | Go |
-|------|--------|------|:-----:|:--:|
-| `BASE_DIR` | - | Docker Compose 项目目录 | ✓ | ✓ |
-| `EXPECTED_REMOTE` | - | Kopia 远程路径 | ✓ | ✓ |
-| `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 | ✓ | ✓ |
-| `KOPIA_CONFIG_FILE` | - | Kopia 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
-| `RCLONE_CONFIG` | - | Rclone 配置文件路径（可选，用于多用户场景） | ✓ | ✓ |
-| `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） | ✓ | ✓ |
-| `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 | ✓ | ✓ |
-| `LOG_FILE` | 脚本同目录下 `yewresin.log` | 日志文件路径 | ✓ | ✓ |
-| `DOCKER_COMMAND_TIMEOUT_SECONDS` | `120` | Docker 命令超时时间（秒） | - | ✓ |
-| `DEVICE_NAME` | - | 设备名称，用于区分不同服务器的通知 | ✓ | ✓ |
-| `APPRISE_URL` | - | Apprise 服务地址 | ✓ | ✓ |
-| `APPRISE_NOTIFY_URL` | - | 通知目标 URL | ✓ | ✓ |
-| `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限）| ✓ | ✓ |
-| `GIST_ID` | - | GitHub Gist ID（日志上传目标）| ✓ | ✓ |
-| `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 | ✓ | ✓ |
-| `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理）| ✓ | ✓ |
-| `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题）| ✓ | ✓ |
-| `CONFIG_FILE` | `./yewresin.sh` 同目录的 `.env` | 配置文件路径 | ✓ | ✓ |
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `BASE_DIR` | - | Docker Compose 项目目录（必填） |
+| `EXPECTED_REMOTE` | - | Kopia 远程路径（必填） |
+| `KOPIA_PASSWORD` | - | Kopia 远程仓库密码 |
+| `KOPIA_CONFIG_FILE` | - | Kopia 配置文件路径（可选，用于多用户场景） |
+| `RCLONE_CONFIG` | - | Rclone 配置文件路径（可选，用于多用户场景） |
+| `PRIORITY_SERVICES_LIST` | `caddy nginx gateway` | 优先服务列表（空格分隔） |
+| `LOCK_FILE` | `/tmp/backup_maintenance.lock` | 锁文件路径 |
+| `LOG_FILE` | 程序同目录下 `yewresin.log` | 日志文件路径 |
+| `DOCKER_COMMAND_TIMEOUT_SECONDS` | `120` | Docker 命令超时时间（秒） |
+| `DEVICE_NAME` | - | 设备名称，用于区分不同服务器的通知 |
+| `APPRISE_URL` | - | Apprise 服务地址 |
+| `APPRISE_NOTIFY_URL` | - | 通知目标 URL |
+| `GIST_TOKEN` | - | GitHub Personal Access Token（需要 gist 权限） |
+| `GIST_ID` | - | GitHub Gist ID（日志上传目标） |
+| `GIST_LOG_PREFIX` | `yewresin-backup` | Gist 日志文件名前缀 |
+| `GIST_MAX_LOGS` | `30` | Gist 最大保留日志数量（设为 0 禁用清理） |
+| `GIST_KEEP_FIRST_FILE` | `true` | 清理时保留第一个文件（用于自定义 Gist 标题） |
+| `CONFIG_FILE` | 程序同目录的 `.env` | 配置文件路径 |
 
 ## 关键要求
 
@@ -196,115 +180,19 @@ EXPECTED_REMOTE=gdrive:backup
 
 这确保了不会在服务仍在运行（可能正在写入数据）时进行备份，避免数据库文件损坏等问题。
 
-## 开发说明
-
-项目包含两个版本的实现，核心逻辑一致。
-
-### Shell 版本
-
-脚本采用模块化结构，源代码位于 `src/` 目录，通过 Makefile 合并生成最终的 `yewresin.sh`。
-
-#### 源码结构
-
-```
-YewResin/
-├── yewresin.sh            # 生成的脚本（由 make build 生成）
-├── Makefile               # 构建工具
-└── src/                   # 模块源文件
-    ├── 00-header.sh       # shebang 和初始化
-    ├── 01-logging.sh      # 日志捕获和 log() 函数
-    ├── 02-args.sh         # 命令行参数解析
-    ├── 03-config.sh       # 配置加载和默认值
-    ├── 04-utils.sh        # 通用工具函数
-    ├── 05-notification.sh # 通知相关函数
-    ├── 06-gist.sh         # GitHub Gist 上传
-    ├── 07-dependencies.sh # 依赖检查
-    ├── 08-services.sh     # Docker 服务管理
-    └── 09-main.sh         # 主流程逻辑
-```
-
-#### 构建命令
-
-```bash
-make build   # 合并模块生成 yewresin.sh
-make clean   # 删除生成的 yewresin.sh
-make help    # 查看帮助
-```
-
-#### 开发流程
-
-1. 修改 `src/` 目录下的模块文件
-2. 运行 `make build` 重新生成 `yewresin.sh`
-3. 提交 `src/`、`Makefile` 和 `yewresin.sh`
-
-### Go 版本
-
-Go 版本位于 `go/` 目录，提供跨平台支持和并行处理能力。
-
-#### 源码结构
-
-```
-go/
-├── main.go            # 程序入口，CLI 参数解析，子命令路由
-├── orchestrator.go    # 备份流程编排器
-├── config.go          # 配置管理
-├── config_bundle.go   # 配置导出/导入（age 加密）
-├── docker.go          # Docker Compose 服务管理
-├── backup.go          # Kopia 备份操作
-├── logger.go          # 日志系统
-├── gist.go            # GitHub Gist 日志上传
-├── notify.go          # Apprise 通知
-├── Makefile           # 交叉编译脚本
-└── dist/              # 编译产物目录
-```
-
-#### 构建命令
-
-```bash
-cd go
-make build     # 构建当前平台
-make all       # 构建所有平台 (linux/darwin/windows)
-make linux     # 仅构建 Linux (amd64, arm64)
-make darwin    # 仅构建 macOS (amd64, arm64)
-make windows   # 仅构建 Windows (amd64)
-make test      # 运行测试
-make clean     # 清理构建产物
-make help      # 查看帮助
-
-# 指定版本构建
-VERSION=v2.0.0 make all
-```
-
-#### 开发流程
-
-1. 修改 `go/` 目录下的源文件
-2. 运行 `make test` 确保测试通过
-3. 运行 `make build` 构建当前平台进行本地测试
-4. 提交代码
-
-### 版本号规则
-
-- **Shell 版本**：`v1.x.x` 标签
-- **Go 版本**：`v2.x.x` 标签
-
-两者共用 CI/CD 流程，通过主版本号区分：
-- `latest` 标签：包含两个版本的最新开发构建
-- `v1.*` 标签：触发 Shell 版本正式发布
-- `v2.*` 标签：触发 Go 版本正式发布
-
 ## 工作流程
 
 1. 检查依赖（rclone、kopia）
-2. 停止普通服务
+2. 停止普通服务（并行）
 3. 停止网关服务
 4. 创建 Kopia 快照
 5. 启动网关服务
-6. 启动普通服务
+6. 启动普通服务（并行）
 7. 执行 Kopia 维护清理
 
 ## 注意事项
 
-如果 `BASE_DIR` 下存在权限敏感的目录（如 `caddy/data/caddy`、`ssl`、`ssh` 等），Kopia 可能会因权限问题报错。虽然备份仍会完成，但建议在 Kopia 策略中忽略这些目录：
+如果 `BASE_DIR` 下存在权限敏感的目录（如 `caddy/data/caddy`、`ssl`、`ssh` 等），Kopia 可能会因权限问题报错。虽然备份仍会完成，但建议在 Kopia 策略中忽略这些目录。
 
 ## GitHub Gist 日志推送
 
@@ -421,19 +309,19 @@ brew install jq
 crontab -e
 
 # 每天北京时间凌晨 3 点执行备份（UTC 19:00）
-0 19 * * * /path/to/yewresin.sh -y
+0 19 * * * /path/to/yewresin -y
 
 # 每周日北京时间凌晨 2 点执行备份（UTC 周六 18:00）
-0 18 * * 6 /path/to/yewresin.sh -y
+0 18 * * 6 /path/to/yewresin -y
 
 # 每 6 小时执行一次（UTC 0点、6点、12点、18点）
-0 */6 * * * /path/to/yewresin.sh -y
+0 */6 * * * /path/to/yewresin -y
 
 # 每天北京时间凌晨 3 点和 15 点执行（UTC 19:00 和 07:00）
-0 7,19 * * * /path/to/yewresin.sh -y
+0 7,19 * * * /path/to/yewresin -y
 
 # 每月 2 日和 16 日北京时间凌晨 4 点执行（对应 UTC 时间 1 日和 15 日的 20:00）
-0 20 1,15 * * /path/to/yewresin.sh -y
+0 20 1,15 * * /path/to/yewresin -y
 ```
 
 ### 使用 Systemd Timer
@@ -450,7 +338,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/path/to/yewresin.sh -y
+ExecStart=/path/to/yewresin -y
 StandardOutput=journal
 StandardError=journal
 ```
@@ -519,7 +407,6 @@ sudo crontab -e
 > **提示**：
 > - 用 `echo ~yewfence` 确认用户的 home 目录路径
 > - 如果你的普通用户在 `docker` 用户组中可以免 sudo 运行 Docker，也可以直接使用普通用户的 `crontab -e` 配置，这样无需额外指定配置文件路径
-
 
 ## 异地恢复引导
 

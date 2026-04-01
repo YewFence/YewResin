@@ -3,7 +3,7 @@ name: Production Release
 on:
   push:
     tags:
-      - "v1*"
+      - "v*"
 
 permissions:
   contents: write
@@ -14,13 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run make
-        run: VERSION=${{ github.ref_name }} make
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run tests
+        run: go test -v ./...
+
+      - name: Build all platforms
+        run: VERSION=${{ github.ref_name }} make all
 
       - name: Create Tagged Release
         uses: softprops/action-gh-release@v2
         with:
-          files: yewresin.sh, .env.example
+          files: |
+            dist/*
+            .env.example
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

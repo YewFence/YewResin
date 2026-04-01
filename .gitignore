@@ -1,4 +1,6 @@
 .env
-yewresin.sh
+dist/
+*.exe
+yewresin
 
 .claude/
