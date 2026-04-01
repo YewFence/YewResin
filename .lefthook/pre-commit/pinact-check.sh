@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-ghtkn get | pinact token set -stdin
+if ! ghtkn get | pinact token set -stdin; then
+  echo "⚠️ Warning: Failed to set GitHub token. pinact may fail or hit rate limits."
+fi
 
 pinact_exit=0
 pinact_output=$(pinact run --check 2>&1) || pinact_exit=$?
