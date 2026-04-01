@@ -1,84 +1,47 @@
 # YewResin 构建脚本
-# 支持多平台交叉编译
+# 通过 Docker Compose 使用 GoReleaser 构建
 
-binary := "yewresin"
-dist_dir := "dist"
-
-# 版本号：优先使用环境变量，否则 git tag，最后时间戳
-version := env_var_or_default("VERSION", `git describe --tags --always 2>/dev/null || date -u +"%Y%m%d.%H%M%S"`)
-
-ldflags := "-s -w -X main.version=" + version
-go_build := "CGO_ENABLED=0 go build -ldflags \"" + ldflags + "\""
-
-# 默认目标：构建当前平台
+# 默认目标：构建当前平台（不需要 goreleaser）
 default: build
 
-# 构建当前平台
+# 快速构建当前平台（不用 Docker）
 build:
-    @echo "Building {{binary}} {{version}} for current platform..."
-    {{go_build}} -o {{binary}} .
-    @echo "Done: {{binary}}"
+    @echo "Building yewresin for current platform..."
+    @CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=dev" -o yewresin .
+    @echo "Done: yewresin"
 
-# 构建所有平台
-all: clean
-    @echo "Building {{binary}} {{version}} for all platforms..."
-    @mkdir -p {{dist_dir}}
-    @just linux
-    @just darwin
-    @just windows
-    @echo ""
-    @echo "All builds completed:"
-    @ls -lh {{dist_dir}}/
+# 使用 GoReleaser 构建所有平台的可执行文件（不发布）
+release-snapshot:
+    docker compose -f compose.goreleaser.yaml run --rm goreleaser build --snapshot --clean
 
-# Linux 平台 (amd64, arm64)
-linux: (build_target "linux" "amd64") (build_target "linux" "arm64")
+# 使用 GoReleaser 模拟完整发布流程（不推送）
+release-dry:
+    docker compose -f compose.goreleaser.yaml run --rm goreleaser release --snapshot --clean
 
-# macOS 平台 (amd64, arm64)
-darwin: (build_target "darwin" "amd64") (build_target "darwin" "arm64")
-
-# Windows 平台 (amd64)
-windows: (build_target "windows" "amd64" true)
-
-# 构建指定平台目标
-build_target os arch windows_ext=false:
-    @mkdir -p {{dist_dir}}
-    #! /usr/bin/env bash
-    ext=""
-    if [ "{{windows_ext}}" = "true" ]; then
-        ext=".exe"
-    fi
-    echo "  Building {{os}}/{{arch}}..."
-    GOOS={{os}} GOARCH={{arch}} {{go_build}} -o {{dist_dir}}/{{binary}}-{{os}}-{{arch}}${ext} .
-
-# 清理构建产物
-clean:
-    @echo "Cleaning..."
-    @rm -rf {{dist_dir}}
-    @rm -f {{binary}} {{binary}}.exe
-    @echo "Done"
+# 使用 GoReleaser 正式发布（需要 git tag + .env.goreleaser 配置）
+release:
+    docker compose -f compose.goreleaser.yaml run --rm goreleaser release --clean
 
 # 运行测试
 test:
     @echo "Running tests..."
     go test -v ./...
 
+# 清理构建产物
+clean:
+    @echo "Cleaning..."
+    @rm -rf dist
+    @rm -f yewresin yewresin.exe
+    @echo "Done"
+
 # 显示帮助信息
 help:
     @echo "YewResin 构建脚本"
     @echo ""
     @echo "用法:"
-    @echo "  just          - 构建当前平台"
-    @echo "  just all      - 构建所有平台"
-    @echo "  just linux    - 构建 Linux (amd64, arm64)"
-    @echo "  just darwin   - 构建 macOS (amd64, arm64)"
-    @echo "  just windows  - 构建 Windows (amd64)"
-    @echo "  just test     - 运行测试"
-    @echo "  just clean    - 清理构建产物"
-    @echo "  just help     - 显示帮助信息"
-    @echo ""
-    @echo "环境变量:"
-    @echo "  VERSION       - 指定版本号 (默认: git tag 或时间戳)"
-    @echo ""
-    @echo "示例:"
-    @echo "  just all                      # 构建所有平台"
-    @echo "  VERSION=v2.0.0 just all       # 指定版本构建"
+    @echo "  just                  - 快速构建当前平台"
+    @echo "  just release-snapshot - 构建全平台可执行文件（不发布）"
+    @echo "  just release-dry      - 模拟完整发布流程（不推送）"
+    @echo "  just release          - 正式发布（需要 tag + 配置）"
+    @echo "  just test             - 运行测试"
+    @echo "  just clean            - 清理构建产物"

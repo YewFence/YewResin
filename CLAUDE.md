@@ -9,11 +9,17 @@ YewResin 是一个 Docker Compose 服务的自动化备份工具，使用 Kopia 
 ## 构建命令
 
 ```bash
-# 构建当前平台
+# 构建当前平台（本地快速构建）
 just build
 
-# 构建所有平台
-just all
+# 使用 GoReleaser 构建全平台可执行文件（通过 Docker，不发布）
+just release-snapshot
+
+# 模拟完整发布流程（不推送）
+just release-dry
+
+# 正式发布（需要 git tag + .env.goreleaser）
+just release
 
 # 运行测试
 just test
@@ -40,7 +46,9 @@ YewResin/
 │   ├── notify.go              # Apprise 通知发送
 │   ├── orchestrator.go        # 备份流程编排器
 │   └── orchestrator_test.go
-├── justfile                   # 交叉编译脚本
+├── justfile                   # 构建脚本（GoReleaser 集成）
+├── .goreleaser.yaml           # GoReleaser 配置
+├── Dockerfile                 # Docker 镜像定义
 ├── go.mod / go.sum
 ├── .env.example
 └── .github/workflows/        # CI/CD
@@ -94,5 +102,15 @@ YewResin/
 
 ## CI/CD
 
-- `build-artifact.yml` - PR 到 main 分支后自动构建测试
-- `prod-release.yml` - 推送 `v*` 标签后自动发布到 GitHub Release
+使用 GoReleaser 管理构建和发布：
+- `build-artifact.yml` - PR 到 main 分支后使用 GoReleaser snapshot 构建
+- `release.yml` - 推送 `v*` 标签后自动发布到 GitHub Release / Homebrew Tap
+
+发布目标：
+- **GitHub Release** - 全平台二进制文件（linux/darwin/windows, amd64/arm64）
+- **Homebrew Tap** - 通过环境变量 `HOMEBREW_TAP_OWNER` / `HOMEBREW_TAP_NAME` 指定仓库
+
+GitHub Secrets/Variables 配置：
+- `TAP_GITHUB_TOKEN` (Secret) - Homebrew Tap 仓库的 PAT
+- `HOMEBREW_TAP_OWNER` (Variable) - Tap 仓库所有者
+- `HOMEBREW_TAP_NAME` (Variable) - Tap 仓库名称（如 `homebrew-tap`）

@@ -1,4 +1,5 @@
 .env
+.env.goreleaser
 dist/
 *.exe
 yewresin
