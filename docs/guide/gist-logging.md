@@ -32,7 +32,7 @@
 
 创建后，从 URL 中获取 Gist ID：
 
-```
+```text
 https://gist.github.com/username/abc123def456789
                               └─────────┬────────┘
                                     这就是 Gist ID
@@ -52,15 +52,7 @@ GIST_KEEP_FIRST_FILE=false        # 可选，清理时保留第一个文件
 
 ### 4. 依赖检查
 
-脚本需要 `jq` 工具来处理 JSON：
-
-```bash
-# Debian/Ubuntu
-sudo apt install jq
-
-# macOS
-brew install jq
-```
+当前 Go 版本无需额外安装 `jq`，日志推送由程序内置实现直接调用 GitHub Gist API。
 
 ## 使用效果
 

@@ -65,6 +65,13 @@ BASE_DIR=/opt/docker_file
 EXPECTED_REMOTE=gdrive:backup
 ```
 
+配置加载优先级：
+
+- 先使用当前进程中已经存在的环境变量
+- 再从 `--config` 指定文件或程序同目录的 `.env` 补齐缺失项
+- 仍未设置时，部分可选项会回退到程序内置默认值
+- `BASE_DIR` 和 `EXPECTED_REMOTE` 等必填项如果最终为空，程序会直接退出
+
 ## 4. 运行
 
 ```bash
@@ -104,6 +111,6 @@ kopia repository status -t -s
 - 连接凭证可以**直接用于访问仓库**，请妥善保管
 - 建议将凭证存储在安全的密码管理器中，如 [Bitwarden](https://bitwarden.com/) ，或使用 [age](https://github.com/FiloSottile/age) 等工具加密保存
 
-更多异地恢复信息请参考 [恢复指南](guide/recovery)，
+更多异地恢复信息请参考 [恢复指南](/guide/recovery)，
 
 更多运行参数请参考 [配置参考](/reference/configuration)。

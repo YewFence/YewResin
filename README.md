@@ -78,6 +78,12 @@ BASE_DIR=/opt/docker_file
 EXPECTED_REMOTE=gdrive:backup
 ```
 
+或者直接临时设置环境变量运行：
+
+```bash
+BASE_DIR=/opt/docker_file EXPECTED_REMOTE=gdrive:backup ./yewresin
+```
+
 ### 4. 运行
 
 ```bash

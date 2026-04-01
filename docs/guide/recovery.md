@@ -7,14 +7,17 @@
 在新机器上安装 Kopia 和 rclone（如果备份使用了 rclone 远端）：
 
 ```bash
+# 以 Linux 为例
 # 安装 kopia
 curl -s https://kopia.io/signing-key | sudo gpg --dearmor -o /etc/apt/keyrings/kopia-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kopia-keyring.gpg] http://packages.kopia.io/apt/ stable main" | sudo tee /etc/apt/sources.list.d/kopia.list
 sudo apt update && sudo apt install kopia
 
-# 安装 rclone（如果备份存储在云端）
-curl https://rclone.org/install.sh | sudo bash
+# 安装 rclone（如果使用了）
+sudo -v ; curl https://rclone.org/install.sh | sudo bash
 ```
+
+> 其他平台的安装方式参见 [Kopia 安装文档](https://kopia.io/docs/installation/) 和 [rclone 安装文档](https://rclone.org/downloads/)。
 
 ## 2. 配置 rclone（如需）
 
