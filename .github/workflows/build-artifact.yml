@@ -38,7 +38,8 @@ jobs:
       - name: Build with GoReleaser (snapshot)
         uses: goreleaser/goreleaser-action@v6
         with:
-          version: "~> v3"
+          distribution: goreleaser
+          version: "~> v2"
           args: build --snapshot --clean
 
       - name: Upload artifact
