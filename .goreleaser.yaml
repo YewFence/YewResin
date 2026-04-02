@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
 version: 2
 
 before:
@@ -75,5 +76,4 @@ homebrew_casks:
     directory: Casks
     homepage: "https://github.com/YewFence/yewresin"
     description: "Docker Compose service backup tool using Kopia + rclone"
-    commit_msg_template: "Brew cask update for {{ .ProjectName }} v{{ .Tag }}"
-
+    commit_msg_template: "Brew cask update for {{ .ProjectName }} {{ .Tag }}"
