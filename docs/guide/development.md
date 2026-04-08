@@ -13,8 +13,17 @@
 
 ```text
 YewResin/
-├── main.go                     # 程序入口，CLI 参数解析
-├── main_test.go
+├── cmd/yewresin/               # CLI 入口与命令壳
+│   ├── main.go
+│   ├── config_command.go
+│   ├── schedule_command.go
+│   └── *_test.go
+├── internal/schedule/          # schedule 子命令的后端实现
+│   ├── schedule.go             # 后端分发与公共接口
+│   ├── cron.go                 # cron 安装 / 卸载 / 状态查询
+│   ├── systemd.go              # systemd-user 安装 / 卸载 / 状态查询
+│   ├── support.go              # 命令拼装、文件操作、平台适配
+│   └── schedule_test.go
 ├── internal/yewresin/          # 核心逻辑
 │   ├── orchestrator.go         # 备份流程编排：锁机制、信号处理、cleanup
 │   ├── docker.go               # 服务发现、启停、并行操作
@@ -102,7 +111,7 @@ git push origin v2.1.0
 
 ## 开发流程
 
-1. 修改 `internal/yewresin/` 下的源文件
+1. 修改 `cmd/yewresin/` 或 `internal/` 下的源文件
 2. `just test` 确保测试通过
 3. `just build` 构建本地二进制进行测试
 4. 提交代码

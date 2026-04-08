@@ -7,7 +7,7 @@ default: build
 # 快速构建当前平台（不用 Docker）
 build:
     @echo "Building yewresin for current platform..."
-    @CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=dev" -o yewresin .
+    @CGO_ENABLED=0 go build -ldflags "-s -w -X main.version=dev" -o yewresin ./cmd/yewresin
     @echo "Done: yewresin"
 
 # 使用 GoReleaser 构建所有平台的可执行文件（不发布）

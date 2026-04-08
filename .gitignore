@@ -2,7 +2,7 @@
 .env.goreleaser
 dist/
 *.exe
-yewresin
+/yewresin
 
 !internal/yewresin
 
