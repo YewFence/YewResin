@@ -39,10 +39,12 @@ kopia repository connect rclone --remote-path="gdrive:backup"
 
 ### 2. 安装 YewResin
 
-#### Homebrew（macOS/Linux）
+#### ~~Homebrew（macOS/Linux）~~
+
+不建议， GoReleaser 有点问题导致生成的 Cask 没有通过 Style 校验，可能不可用
 
 ```bash
-brew install yewfence/tap/yewresin
+brew install --cask yewfence/tap/yewresin
 ```
 
 #### 下载可执行文件
