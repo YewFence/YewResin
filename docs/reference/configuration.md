@@ -21,6 +21,22 @@
 `config init --force` 可以覆盖已有的默认配置文件。
 如果 `EDITOR` 未设置，`config edit` 会按平台尝试常见编辑器作为兜底。
 
+## 调度子命令
+
+| 命令 | 说明 |
+|------|------|
+| `schedule install` | 安装当前用户的定时调度；默认后端为 `cron`，默认表达式为 `0 3 * * *` |
+| `schedule uninstall` | 卸载当前用户的定时调度 |
+| `schedule status` | 查看当前用户的定时调度状态 |
+
+常用选项：
+
+- `schedule install --expr "0 */6 * * *"`：给 `cron` 后端指定表达式
+- `schedule install --backend systemd-user --on-calendar "*-*-* 03:00:00"`：Linux 下切到 `systemd-user`
+- `schedule install --config /path/to/config.toml`：显式指定要写入调度命令的配置文件路径
+
+`schedule` 会尽量写入绝对路径的可执行文件和配置文件，减少 `cron` / `systemd` 环境和交互式 shell 环境不一致的问题。
+
 ## 配置加载顺序
 
 配置按以下顺序生效：

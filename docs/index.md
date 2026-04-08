@@ -28,5 +28,5 @@ features:
   - title: 通知备份状态
     details: 支持 Apprise 通知，可通过 [YewFence/apprise](https://github.com/YewFence/apprise) 快速部署到 Vercel。
   - title: 多种运行模式
-    details: 支持 dry-run 模式预览、跳过确认模式、锁机制防止重复运行，完美适配 cron 和 systemd timer。
+    details: 支持 dry-run 模式预览、跳过确认模式、锁机制防止重复运行，并内置 schedule 子命令快速接入 cron 或 systemd-user。
 ---

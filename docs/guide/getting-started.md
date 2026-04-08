@@ -153,7 +153,30 @@ yewresin
 yewresin -y
 ```
 
-## 5. 备份连接凭证
+## 5. 配置定时执行
+
+推荐直接用 `schedule` 子命令，默认会写入当前用户的 `cron`，不需要 `sudo`：
+
+```bash
+yewresin schedule install
+yewresin schedule status
+```
+
+默认表达式是服务器本地时区的 `0 3 * * *`。也可以使用参数自定义表达式或切换后端：
+
+```bash
+# 每 6 小时执行一次
+yewresin schedule install --expr "0 */6 * * *"
+
+# Linux 下切到 systemd user timer
+yewresin schedule install --backend systemd-user --on-calendar "*-*-* 03:00:00"
+```
+
+> `cron` 后端适用于 Linux / macOS，`systemd-user` 只支持 Linux、
+> 
+> 你也可以参考 [定时任务](/guide/scheduling) 手写 `crontab` 或 `systemd` 单元
+
+## 6. 备份连接凭证
 
 为了保证可以快速异地恢复，建议备份连接 Kopia 仓库与 rclone (如有)的连接凭证
 

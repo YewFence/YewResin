@@ -166,6 +166,29 @@ yewresin
 yewresin -y
 ```
 
+### 5. 配置定时执行
+
+推荐直接用 `schedule` 子命令，默认会写入当前用户的 `cron`，不需要 `sudo`：
+
+```bash
+yewresin schedule install
+yewresin schedule status
+```
+
+默认表达式是服务器本地时区的 `0 3 * * *`。如果你想改频率，也可以直接传：
+
+```bash
+# 每 6 小时执行一次
+yewresin schedule install --expr "0 */6 * * *"
+
+# Linux 下切到 systemd user timer
+yewresin schedule install --backend systemd-user --on-calendar "*-*-* 03:00:00"
+```
+
+- `cron` 后端适用于 Linux / macOS
+- `systemd-user` 只支持 Linux
+- 手动写 `crontab` 或 `systemd` 单元时，参考 [定时任务](https://yewfence.github.io/YewResin/guide/scheduling)
+
 ## 文档
 
 完整文档请访问 [YewResin 文档站](https://yewfence.github.io/YewResin/)
