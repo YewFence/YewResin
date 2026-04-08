@@ -35,6 +35,25 @@ func clearConfigEnv(t *testing.T) {
 	}
 }
 
+func stubConfigDiscovery(t *testing.T, executablePath, userConfigDir string, executableErr, userConfigErr error) {
+	t.Helper()
+
+	originalExecutablePath := getExecutablePath
+	originalUserConfigDir := getUserConfigDir
+
+	getExecutablePath = func() (string, error) {
+		return executablePath, executableErr
+	}
+	getUserConfigDir = func() (string, error) {
+		return userConfigDir, userConfigErr
+	}
+
+	t.Cleanup(func() {
+		getExecutablePath = originalExecutablePath
+		getUserConfigDir = originalUserConfigDir
+	})
+}
+
 func writeTempConfigFile(t *testing.T, name, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
@@ -92,6 +111,53 @@ func TestMaskString(t *testing.T) {
 	longVal := "https://example.com/path"
 	if got := maskString(longVal); got != "https://...path" {
 		t.Fatalf("expected masked long, got %q", got)
+	}
+}
+
+func TestResolveConfigPathPrefersUserConfigDir(t *testing.T) {
+	userConfigDir := t.TempDir()
+	executableDir := t.TempDir()
+	userConfigPath := filepath.Join(userConfigDir, defaultConfigDirName, "config.toml")
+	executableConfigPath := filepath.Join(executableDir, "config.toml")
+
+	if err := os.MkdirAll(filepath.Dir(userConfigPath), 0o755); err != nil {
+		t.Fatalf("failed to create user config dir: %v", err)
+	}
+	if err := os.WriteFile(userConfigPath, []byte(""), 0o600); err != nil {
+		t.Fatalf("failed to write user config file: %v", err)
+	}
+	if err := os.WriteFile(executableConfigPath, []byte(""), 0o600); err != nil {
+		t.Fatalf("failed to write executable config file: %v", err)
+	}
+
+	stubConfigDiscovery(t, filepath.Join(executableDir, "yewresin.exe"), userConfigDir, nil, nil)
+
+	got, err := resolveConfigPath("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != userConfigPath {
+		t.Fatalf("expected user config path %q, got %q", userConfigPath, got)
+	}
+}
+
+func TestResolveConfigPathFallsBackToExecutableDir(t *testing.T) {
+	userConfigDir := t.TempDir()
+	executableDir := t.TempDir()
+	executableConfigPath := filepath.Join(executableDir, ".env")
+
+	if err := os.WriteFile(executableConfigPath, []byte(""), 0o600); err != nil {
+		t.Fatalf("failed to write executable config file: %v", err)
+	}
+
+	stubConfigDiscovery(t, filepath.Join(executableDir, "yewresin.exe"), userConfigDir, nil, nil)
+
+	got, err := resolveConfigPath("")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != executableConfigPath {
+		t.Fatalf("expected executable config path %q, got %q", executableConfigPath, got)
 	}
 }
 

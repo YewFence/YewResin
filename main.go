@@ -24,7 +24,7 @@ func main() {
 	autoConfirm := flag.Bool("yes", false, "跳过交互式确认")
 	flag.BoolVar(autoConfirm, "y", false, "跳过确认（-yes 的简写）")
 
-	configFile := flag.String("config", "", "配置文件路径（支持 .env / .toml，默认优先程序同目录的 config.toml，其次 .env）")
+	configFile := flag.String("config", "", "配置文件路径（支持 .env / .toml，默认优先用户配置目录中的 config.toml，其次 .env，再回退到程序同目录）")
 	showVersion := flag.Bool("version", false, "显示版本信息")
 
 	flag.Usage = func() {

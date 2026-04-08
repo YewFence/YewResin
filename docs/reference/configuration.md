@@ -7,7 +7,7 @@
 | `--dry-run`, `-n` | 模拟运行，只检查依赖和显示操作，不实际执行 |
 | `-y`, `--yes` | 跳过交互式确认 |
 | `--help`, `-h` | 显示帮助信息 |
-| `--config <path>` | 指定配置文件路径（支持 `.env` / `.toml`） |
+| `--config <path>` | 指定配置文件路径（支持 `config.toml` / `.env`） |
 | `--version` | 显示版本信息 |
 
 ## 配置加载顺序
@@ -16,9 +16,11 @@
 
 1. 当前进程中已存在的环境变量
 2. `--config` 指定文件中的配置（支持 `.env` / `.toml`）
-3. 程序同目录的 `config.toml`
-4. 程序同目录的 `.env`
-5. 代码中的内置默认值
+3. 用户配置目录中的 `config.toml`
+4. 用户配置目录中的 `.env`
+5. 程序同目录的 `config.toml`
+6. 程序同目录的 `.env`
+7. 代码中的内置默认值
 
 ## 配置项
 
@@ -80,9 +82,13 @@ config_file = "/home/youruser/.config/rclone/rclone.conf"
 
 ## 配置文件位置
 
-- 直接下载安装：程序同目录优先读取 `config.toml`，其次 `.env`
+- 默认配置目录基于 `os.UserConfigDir()`：
+- Linux 通常是 `~/.config/yewresin/`
+- macOS 通常是 `~/Library/Application Support/yewresin/`
+- Windows 通常是 `%AppData%\yewresin\`
 - `--config` 参数：手动指定任意路径的 `.env` 或 `.toml` 文件
-- Homebrew 安装后，程序位于 `bin/` 目录，无法在同目录放默认配置文件，推荐使用 `--config` 指定（如 `~/.config/yewresin/config.toml`）
+- 默认会优先读取用户配置目录中的 `config.toml`，其次 `.env`
+- 为了兼容已有安装方式，如果用户配置目录没有配置文件，仍会继续尝试程序同目录的 `config.toml` 和 `.env`
 - 如果默认路径下不存在配置文件，程序不会报错，但需要通过环境变量提供必填项
 
 ## 日志持久化说明

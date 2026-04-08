@@ -17,6 +17,12 @@ const (
 	defaultDockerCommandTimeoutSeconds = 120
 	defaultGistLogPrefix               = "yewresin-backup"
 	defaultGistMaxLogs                 = 30
+	defaultConfigDirName               = "yewresin"
+)
+
+var (
+	getExecutablePath = os.Executable
+	getUserConfigDir  = os.UserConfigDir
 )
 
 // Config 应用配置
@@ -79,7 +85,7 @@ type fileConfig struct {
 }
 
 // LoadConfig 从环境变量和配置文件加载配置。
-// 优先级：环境变量 > 显式/默认配置文件 > 内置默认值。
+// 优先级：环境变量 > 显式配置文件 > 用户配置目录 > 程序同目录 > 内置默认值。
 func LoadConfig(configPath string) (*Config, error) {
 	resolvedConfigPath, err := resolveConfigPath(configPath)
 	if err != nil {
@@ -145,15 +151,9 @@ func resolveConfigPath(configPath string) (string, error) {
 		return configPath, nil
 	}
 
-	exe, err := os.Executable()
+	candidates, err := defaultConfigCandidates()
 	if err != nil {
-		return "", fmt.Errorf("获取程序路径失败: %w", err)
-	}
-
-	exeDir := filepath.Dir(exe)
-	candidates := []string{
-		filepath.Join(exeDir, "config.toml"),
-		filepath.Join(exeDir, ".env"),
+		return "", err
 	}
 
 	for _, candidate := range candidates {
@@ -170,6 +170,34 @@ func resolveConfigPath(configPath string) (string, error) {
 	}
 
 	return "", nil
+}
+
+func defaultConfigCandidates() ([]string, error) {
+	var candidates []string
+
+	if userConfigDir, err := getUserConfigDir(); err == nil && userConfigDir != "" {
+		configDir := filepath.Join(userConfigDir, defaultConfigDirName)
+		candidates = append(candidates,
+			filepath.Join(configDir, "config.toml"),
+			filepath.Join(configDir, ".env"),
+		)
+	}
+
+	exe, err := getExecutablePath()
+	if err != nil {
+		if len(candidates) > 0 {
+			return candidates, nil
+		}
+		return nil, fmt.Errorf("获取程序路径失败: %w", err)
+	}
+
+	exeDir := filepath.Dir(exe)
+	candidates = append(candidates,
+		filepath.Join(exeDir, "config.toml"),
+		filepath.Join(exeDir, ".env"),
+	)
+
+	return candidates, nil
 }
 
 func loadConfigFile(configPath string) (*fileConfig, error) {

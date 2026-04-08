@@ -58,7 +58,13 @@ chmod +x yewresin
 
 ### Homebrew 安装 {#homebrew}
 
-Homebrew 安装后，程序位于 `bin/` 目录下，无法在同目录放置默认配置文件。推荐使用 `--config` 指定 `config.toml`：
+默认会优先读取用户配置目录中的配置文件：
+
+- Linux: `~/.config/yewresin/config.toml`
+- macOS: `~/Library/Application Support/yewresin/config.toml`
+- Windows: `%AppData%\yewresin\config.toml`
+
+Homebrew 安装场景下，推荐直接把 `config.toml` 放到这个位置：
 
 ```bash
 # 创建配置目录
@@ -68,8 +74,8 @@ wget https://github.com/YewFence/YewResin/releases/latest/download/config.toml.e
 # 编辑配置
 vim ~/.config/yewresin/config.toml
 
-# 运行时指定配置文件
-yewresin --config ~/.config/yewresin/config.toml
+# 运行
+yewresin
 ```
 
 或者直接使用环境变量（适合 cron 场景）：
@@ -80,7 +86,7 @@ BASE_DIR=/opt/docker_file EXPECTED_REMOTE=gdrive:backup yewresin -y
 
 ### 直接下载安装
 
-更推荐在程序同目录创建 `config.toml`：
+推荐同样放到用户配置目录；如果你就是想把配置跟二进制放一起，也还能继续用程序同目录的 `config.toml` / `.env`：
 
 ```bash
 cd ~/yewresin
@@ -119,6 +125,8 @@ password = "your_kopia_password"
 
 - 当前进程中的环境变量
 - `--config` 指定的 `.toml` / `.env`
+- 用户配置目录中的 `config.toml`
+- 用户配置目录中的 `.env`
 - 程序同目录的 `config.toml`
 - 程序同目录的 `.env`
 - 程序内置默认值
