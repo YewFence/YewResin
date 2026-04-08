@@ -20,6 +20,9 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "config" {
 		os.Exit(runConfigCommand(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
+	if len(os.Args) > 1 && os.Args[1] == "schedule" {
+		os.Exit(runScheduleCommand(os.Args[2:], os.Stdout, os.Stderr))
+	}
 
 	// CLI 参数定义
 	dryRun := flag.Bool("dry-run", false, "模拟运行，不执行实际操作")
@@ -36,15 +39,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "用法:\n")
 		fmt.Fprintf(os.Stderr, "  %s [选项]\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s config <init|edit>\n\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s schedule <install|uninstall|status>\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "选项:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\n子命令:\n")
 		fmt.Fprintf(os.Stderr, "  config init    初始化默认配置文件\n")
 		fmt.Fprintf(os.Stderr, "  config edit    使用 EDITOR 打开默认配置文件\n")
+		fmt.Fprintf(os.Stderr, "  schedule ...   管理定时调度（默认 cron，可切换 systemd-user）\n")
 		fmt.Fprintf(os.Stderr, "\n示例:\n")
 		fmt.Fprintf(os.Stderr, "  %s --dry-run     # 模拟运行\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s -y            # 跳过确认直接执行\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "  %s config init   # 创建默认配置文件\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "  %s schedule install\n", os.Args[0])
 	}
 
 	flag.Parse()

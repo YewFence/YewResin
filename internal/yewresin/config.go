@@ -195,6 +195,11 @@ func resolveConfigPath(configPath string) (string, error) {
 	return "", nil
 }
 
+// ResolveConfigPath 返回显式路径或默认发现到的配置文件路径；如果都不存在则返回空字符串。
+func ResolveConfigPath(configPath string) (string, error) {
+	return resolveConfigPath(configPath)
+}
+
 func defaultConfigCandidates() ([]string, error) {
 	var candidates []string
 
