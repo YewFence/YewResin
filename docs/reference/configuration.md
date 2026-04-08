@@ -10,6 +10,17 @@
 | `--config <path>` | 指定配置文件路径（支持 `config.toml` / `.env`） |
 | `--version` | 显示版本信息 |
 
+## 配置子命令
+
+| 命令 | 说明 |
+|------|------|
+| `config init` | 将 `config.toml.example` 初始化到默认配置目录，并只引导填写必填项 |
+| `config edit` | 使用 `EDITOR` 打开默认配置文件 |
+
+`config edit` 依赖 `EDITOR` 环境变量，例如 `EDITOR="code --wait"`。
+`config init --force` 可以覆盖已有的默认配置文件。
+如果 `EDITOR` 未设置，`config edit` 会按平台尝试常见编辑器作为兜底。
+
 ## 配置加载顺序
 
 配置按以下顺序生效：

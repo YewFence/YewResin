@@ -25,6 +25,29 @@ var (
 	getUserConfigDir  = os.UserConfigDir
 )
 
+// DefaultConfigDir 返回用户级默认配置目录。
+func DefaultConfigDir() (string, error) {
+	userConfigDir, err := getUserConfigDir()
+	if err != nil {
+		return "", fmt.Errorf("获取用户配置目录失败: %w", err)
+	}
+	if userConfigDir == "" {
+		return "", fmt.Errorf("用户配置目录为空")
+	}
+
+	return filepath.Join(userConfigDir, defaultConfigDirName), nil
+}
+
+// DefaultConfigFilePath 返回默认 TOML 配置文件路径。
+func DefaultConfigFilePath() (string, error) {
+	configDir, err := DefaultConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(configDir, "config.toml"), nil
+}
+
 // Config 应用配置
 type Config struct {
 	// 必填配置
@@ -175,8 +198,7 @@ func resolveConfigPath(configPath string) (string, error) {
 func defaultConfigCandidates() ([]string, error) {
 	var candidates []string
 
-	if userConfigDir, err := getUserConfigDir(); err == nil && userConfigDir != "" {
-		configDir := filepath.Join(userConfigDir, defaultConfigDirName)
+	if configDir, err := DefaultConfigDir(); err == nil {
 		candidates = append(candidates,
 			filepath.Join(configDir, "config.toml"),
 			filepath.Join(configDir, ".env"),

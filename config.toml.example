@@ -7,13 +7,13 @@ priority_services = ["caddy", "nginx", "gateway"]
 lock_file = "/tmp/backup_maintenance.lock"
 
 [logging]
-file = "/var/log/yewresin.log"
+# file = "/var/log/yewresin.log"
 docker_command_timeout_seconds = 120
 
 [notifications]
-device_name = "HomeServer"
-apprise_url = "https://your-apprise-instance.vercel.app/notify"
-apprise_notify_url = "tgram://bottoken/ChatID"
+# device_name = "HomeServer"
+# apprise_url = "https://your-apprise-instance.vercel.app/notify"
+# apprise_notify_url = "tgram://bottoken/ChatID"
 
 [gist]
 # token = "ghp_xxxxxxxxxxxxxxxxxxxx"

@@ -67,15 +67,11 @@ chmod +x yewresin
 Homebrew 安装场景下，推荐直接把 `config.toml` 放到这个位置：
 
 ```bash
-# 创建配置目录
-mkdir -p ~/.config/yewresin
-# 下载示例文件
-wget https://github.com/YewFence/YewResin/releases/latest/download/config.toml.example -O ~/.config/yewresin/config.toml
-# 编辑配置
-vim ~/.config/yewresin/config.toml
+# 交互式初始化默认配置
+yewresin config init
 
-# 运行
-yewresin
+# 用 EDITOR 打开配置
+yewresin config edit
 ```
 
 或者直接使用环境变量（适合 cron 场景）：
@@ -133,6 +129,16 @@ password = "your_kopia_password"
 - `BASE_DIR` 和 `EXPECTED_REMOTE` 等必填项如果最终为空，程序会直接退出
 
 如果你把 `KOPIA_PASSWORD` 这类敏感信息放进 `config.toml` 也能生效，但更推荐交给环境变量。
+
+也可以直接用子命令管理默认配置文件：
+
+```bash
+yewresin config init
+yewresin config init --force
+yewresin config edit
+```
+
+`config edit` 会优先使用 `EDITOR`，如果没设置，会按平台尝试常见编辑器作为兜底。
 
 ## 4. 运行
 
