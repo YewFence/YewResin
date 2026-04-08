@@ -72,18 +72,18 @@ chmod +x yewresin
 
 #### Homebrew 安装
 
-Homebrew 安装后，程序位于 `bin/` 目录下，无法在同目录放置 `.env` 文件。推荐使用 `--config` 指定配置文件：
+Homebrew 安装后，程序位于 `bin/` 目录下，无法在同目录放置默认配置文件。推荐使用 `--config` 指定 `config.toml`：
 
 ```bash
 # 创建配置目录
 mkdir -p ~/.config/yewresin
 # 下载示例文件
-wget https://github.com/YewFence/YewResin/releases/latest/download/.env.example -O ~/.config/yewresin/.env
+wget https://github.com/YewFence/YewResin/releases/latest/download/config.toml.example -O ~/.config/yewresin/config.toml
 # 编辑配置
-vim ~/.config/yewresin/.env
+vim ~/.config/yewresin/config.toml
 
 # 运行时指定配置文件
-yewresin --config ~/.config/yewresin/.env
+yewresin --config ~/.config/yewresin/config.toml
 ```
 
 或者直接使用环境变量（适合 cron 场景）：
@@ -94,7 +94,14 @@ BASE_DIR=/opt/docker_file EXPECTED_REMOTE=gdrive:backup yewresin -y
 
 #### 直接下载安装
 
-在程序同目录创建 `.env` 文件：
+更推荐在程序同目录创建 `config.toml`：
+
+```bash
+cd ~/yewresin
+wget https://github.com/YewFence/YewResin/releases/latest/download/config.toml.example -O config.toml
+```
+
+如果你更习惯环境变量风格，也可以继续使用 `.env`：
 
 ```bash
 cd ~/yewresin
@@ -102,7 +109,7 @@ wget https://github.com/YewFence/YewResin/releases/latest/download/.env.example
 cp .env.example .env
 ```
 
-#### 必要环境变量
+#### 必要配置项
 
 ```bash
 # Docker Compose 项目总目录
@@ -110,6 +117,27 @@ BASE_DIR=/opt/docker_file
 # Kopia 远程路径
 EXPECTED_REMOTE=gdrive:backup
 ```
+
+`config.toml` 示例：
+
+```toml
+base_dir = "/opt/docker_file"
+expected_remote = "gdrive:backup"
+priority_services = ["caddy", "nginx", "gateway"]
+
+[kopia]
+password = "your_kopia_password"
+```
+
+配置加载优先级：
+
+- 当前进程中的环境变量
+- `--config` 指定的 `.toml` / `.env`
+- 程序同目录的 `config.toml`
+- 程序同目录的 `.env`
+- 程序内置默认值
+
+如果你把 `KOPIA_PASSWORD` 这类敏感信息放进 `config.toml` 也能生效，但更推荐交给环境变量。
 
 ### 4. 运行
 

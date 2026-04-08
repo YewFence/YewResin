@@ -6,11 +6,13 @@ import (
 	"log/slog"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // KopiaBackup Kopia 备份管理器
 type KopiaBackup struct {
 	expectedRemote string
+	password       string // Kopia 仓库密码
 	configFile     string // Kopia 配置文件路径
 	rcloneConfig   string // Rclone 配置文件路径
 	dryRun         bool
@@ -18,15 +20,19 @@ type KopiaBackup struct {
 }
 
 // NewKopiaBackup 创建 Kopia 备份管理器
-func NewKopiaBackup(expectedRemote, configFile, rcloneConfig string, dryRun bool) *KopiaBackup {
+func NewKopiaBackup(expectedRemote, password, configFile, rcloneConfig string, dryRun bool) *KopiaBackup {
 	// 初始化时构建并缓存环境变量
 	env := os.Environ()
+	if password != "" {
+		env = setEnvValue(env, "KOPIA_PASSWORD", password)
+	}
 	if rcloneConfig != "" {
-		env = append(env, "RCLONE_CONFIG="+rcloneConfig)
+		env = setEnvValue(env, "RCLONE_CONFIG", rcloneConfig)
 	}
 
 	return &KopiaBackup{
 		expectedRemote: expectedRemote,
+		password:       password,
 		configFile:     configFile,
 		rcloneConfig:   rcloneConfig,
 		dryRun:         dryRun,
@@ -71,6 +77,19 @@ func (k *KopiaBackup) buildKopiaArgs(args ...string) []string {
 // buildEnv 返回缓存的环境变量（包含 RCLONE_CONFIG）
 func (k *KopiaBackup) buildEnv() []string {
 	return k.cachedEnv
+}
+
+func setEnvValue(env []string, key, value string) []string {
+	prefix := key + "="
+	result := make([]string, 0, len(env)+1)
+
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, prefix) {
+			result = append(result, entry)
+		}
+	}
+
+	return append(result, prefix+value)
 }
 
 // CheckRepository 检查 Kopia 仓库连接状态

@@ -19,7 +19,7 @@ YewResin/
 │   ├── orchestrator.go         # 备份流程编排：锁机制、信号处理、cleanup
 │   ├── docker.go               # 服务发现、启停、并行操作
 │   ├── backup.go               # Kopia 快照创建、依赖检查
-│   ├── config.go               # 环境变量加载、配置验证
+│   ├── config.go               # .env / TOML 配置加载、配置验证
 │   ├── logger.go               # slog 日志系统、文件输出
 │   ├── gist.go                 # Gist 上传和旧日志清理
 │   └── notify.go               # Apprise 异步通知

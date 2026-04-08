@@ -1,0 +1,30 @@
+# YewResin TOML 配置示例
+# 复制此文件为 config.toml 并按需修改
+
+base_dir = "/opt/docker_file"
+expected_remote = "gdrive:backup"
+priority_services = ["caddy", "nginx", "gateway"]
+lock_file = "/tmp/backup_maintenance.lock"
+
+[logging]
+file = "/var/log/yewresin.log"
+docker_command_timeout_seconds = 120
+
+[notifications]
+device_name = "HomeServer"
+apprise_url = "https://your-apprise-instance.vercel.app/notify"
+apprise_notify_url = "tgram://bottoken/ChatID"
+
+[gist]
+# token = "ghp_xxxxxxxxxxxxxxxxxxxx"
+# id = "your_gist_id"
+log_prefix = "yewresin-backup"
+max_logs = 30
+keep_first_file = true
+
+[kopia]
+# password = "your_kopia_password"
+# config_file = "/home/youruser/.config/kopia/repository.config"
+
+[rclone]
+# config_file = "/home/youruser/.config/rclone/rclone.conf"
